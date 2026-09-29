@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import RegisterWizard from './components/auth/RegisterWizard';
 import HomePage from './pages/HomePage';
 import RoadmapPage from './pages/RoadmapPage';
-import PlaceholderTabPage from './pages/PlaceholderTabPage';
+import ResourcesPage from './pages/ResourcesPage';
+import ProfilePage from './pages/ProfilePage';
 import BottomNav from './components/layout/BottomNav';
 import { dashboardData } from './data/dashboardData';
 
@@ -22,6 +23,11 @@ export default function App() {
     setActiveTab('home');
   };
 
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  };
+
   return (
     <div className="min-h-screen bg-[#06080E] text-white flex justify-center selection:bg-[#E8B84B] selection:text-[#0D1117]">
       {/* ── ASOSIY SMARTFON KONTEYNERI (Desktopda ham, mobilda ham telefon formati) ── */}
@@ -38,30 +44,28 @@ export default function App() {
               {activeTab === 'home' && (
                 <HomePage
                   userData={userData}
-                  onNavigateTab={(tab) => setActiveTab(tab)}
+                  onNavigateTab={handleTabChange}
                 />
               )}
 
               {activeTab === 'lessons' && <RoadmapPage />}
 
-              {activeTab === 'more' && (
-                <PlaceholderTabPage
-                  title="Ko'proq"
-                  description="Qo'shimcha imkoniyatlar va sozlamalar hozircha tayyorlanmoqda."
-                />
-              )}
+              {(activeTab === 'resources' || activeTab === 'more') && <ResourcesPage />}
 
               {activeTab === 'profile' && (
-                <PlaceholderTabPage
-                  title="Profil"
-                  description={`${userData?.fullName || dashboardData.userName} • ${
-                    userData?.gradeLevel ? `${userData.gradeLevel}-sinf` : dashboardData.classLevel
-                  }`}
+                <ProfilePage
+                  userData={userData}
+                  onUpdateUserData={setUserData}
+                  onLogout={() => {
+                    setAppState('register');
+                    setActiveTab('home');
+                    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+                  }}
                 />
               )}
             </main>
 
-            <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+            <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
           </>
         )}
       </div>

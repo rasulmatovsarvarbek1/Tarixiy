@@ -1,12 +1,12 @@
 import React from 'react';
-import { Home, BookOpen, MoreHorizontal, UserRound } from 'lucide-react';
+import { Home, BookOpen, Layers, UserRound } from 'lucide-react';
 
 export default function BottomNav({ activeTab, onTabChange }) {
   const navItems = [
-    { id: 'home',    label: 'Bosh sahifa', icon: Home },
-    { id: 'lessons', label: 'Darslar',     icon: BookOpen },
-    { id: 'more',    label: "Ko'proq",     icon: MoreHorizontal },
-    { id: 'profile', label: 'Profil',      icon: UserRound },
+    { id: 'home',      label: 'Bosh sahifa', icon: Home },
+    { id: 'lessons',   label: 'Darslar',     icon: BookOpen },
+    { id: 'resources', label: 'Resurslar',   icon: Layers },
+    { id: 'profile',   label: 'Profil',      icon: UserRound },
   ];
 
   return (
