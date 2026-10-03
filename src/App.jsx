@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import RegisterWizard from './components/auth/RegisterWizard';
 import HomePage from './pages/HomePage';
 import RoadmapPage from './pages/RoadmapPage';
@@ -17,6 +17,16 @@ export default function App() {
     track: 'full_history',
   });
 
+  const scrollContainerRef = useRef(null);
+
+  // Tab almashganda sahifani eng tepaga qaytarish
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0;
+    }
+  }, [activeTab]);
+
   const handleRegistrationComplete = (data) => {
     setUserData(data);
     setAppState('app');
@@ -25,34 +35,45 @@ export default function App() {
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
-    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   };
 
   return (
     <div className="min-h-screen bg-[#F1F5F9] text-[#1E293B] flex justify-center selection:bg-[#E8B84B] selection:text-[#0D1117]">
-      {/* ── ASOSIY SMARTFON KONTEYNERI (Desktopda ham, mobilda ham telefon formati) ── */}
+      {/* ── ASOSIY SMARTFON KONTEYNERI ── */}
       <div className="w-full max-w-[430px] min-h-screen bg-white relative shadow-[0_10px_40px_rgba(0,0,0,0.08)] sm:border-x border-[#E2E8F0] flex flex-col overflow-x-hidden">
+
+        {/* REGISTER */}
         {appState === 'register' && (
           <div className="min-h-screen bg-white flex flex-col justify-center items-center p-4 page-transition">
             <RegisterWizard onComplete={handleRegistrationComplete} />
           </div>
         )}
 
+        {/* APP — barcha sahifalar mounted bo'lib turadi, faqat ko'rinishi o'zgaradi */}
         {appState === 'app' && (
           <>
-            <main key={activeTab} className="flex-1 page-transition pb-20 bg-white">
-              {activeTab === 'home' && (
+            <main ref={scrollContainerRef} className="flex-1 pb-20 bg-white relative overflow-y-auto">
+
+              {/* HOME */}
+              <div style={{ display: activeTab === 'home' ? 'block' : 'none' }}>
                 <HomePage
                   userData={userData}
                   onNavigateTab={handleTabChange}
                 />
-              )}
+              </div>
 
-              {activeTab === 'lessons' && <RoadmapPage />}
+              {/* LESSONS */}
+              <div style={{ display: activeTab === 'lessons' ? 'block' : 'none' }}>
+                <RoadmapPage />
+              </div>
 
-              {(activeTab === 'resources' || activeTab === 'more') && <ResourcesPage />}
+              {/* RESOURCES / MORE */}
+              <div style={{ display: (activeTab === 'resources' || activeTab === 'more') ? 'block' : 'none' }}>
+                <ResourcesPage />
+              </div>
 
-              {activeTab === 'profile' && (
+              {/* PROFILE */}
+              <div style={{ display: activeTab === 'profile' ? 'block' : 'none' }}>
                 <ProfilePage
                   userData={userData}
                   onUpdateUserData={setUserData}
@@ -62,7 +83,8 @@ export default function App() {
                     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
                   }}
                 />
-              )}
+              </div>
+
             </main>
 
             <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />

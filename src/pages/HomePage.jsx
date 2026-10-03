@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import {
   Zap,
   Users,
@@ -17,7 +17,12 @@ import {
   Target,
   CalendarDays,
   Medal,
-  Trophy
+  Trophy,
+  Send,
+  Image,
+  Smile,
+  Bell,
+  Mail
 } from 'lucide-react';
 import { dashboardData } from '../data/dashboardData';
 
@@ -73,6 +78,12 @@ export default function HomePage({ userData }) {
   const [activeSubPage, setActiveSubPage] = useState(null);
   const [isReferralModalOpen, setIsReferralModalOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [chatMessage, setChatMessage] = useState('');
+  const [chatMessages, setChatMessages] = useState([
+    { id: 1, from: 'support', text: 'Assalomu Alaykum! Tarixiy ilovaga xush kelibsiz 🎉', time: '10:00' },
+    { id: 2, from: 'support', text: 'Savollaringiz bo\'lsa, bemalol yozing. Sizga yordam berishdan xursandmiz! 😊', time: '10:01' },
+  ]);
+  const chatEndRef = useRef(null);
 
   const fullName = useMemo(() => {
     return userData?.fullName?.trim() || dashboardData.userName;
@@ -85,6 +96,238 @@ export default function HomePage({ userData }) {
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
   };
+
+  const handleSendMessage = () => {
+    if (!chatMessage.trim()) return;
+    const now = new Date();
+    const time = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+    setChatMessages(prev => [...prev, { id: Date.now(), from: 'user', text: chatMessage.trim(), time }]);
+    setChatMessage('');
+    setTimeout(() => {
+      setChatMessages(prev => [...prev, {
+        id: Date.now() + 1,
+        from: 'support',
+        text: 'Xabaringiz qabul qilindi! Tez orada javob beramiz ✅',
+        time
+      }]);
+    }, 1200);
+  };
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages, activeSubPage]);
+
+  /* ═══════════════════════════════════════════════════════════════
+     SUB-PAGE: SUHBATLAR RO'YXATI
+  ═══════════════════════════════════════════════════════════════ */
+  if (activeSubPage === 'suhbatlar') {
+    return (
+      <div className="w-full max-w-md mx-auto min-h-screen bg-white flex flex-col page-transition">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 pt-10 pb-3 bg-white border-b border-[#E2E8F0] shadow-sm">
+          <button
+            type="button"
+            onClick={() => setActiveSubPage(null)}
+            className="flex items-center gap-1.5 text-[#1E40AF] text-sm font-semibold active:opacity-60 transition cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Ortga
+          </button>
+          <h1 className="text-[#0F172A] font-bold text-lg">Suhbatlar</h1>
+          <div className="w-16" />
+        </div>
+
+        {/* Chat list */}
+        <div className="flex-1 px-0">
+          {/* Support Service item */}
+          <button
+            type="button"
+            onClick={() => setActiveSubPage('support-chat')}
+            className="w-full flex items-center gap-3 px-4 py-3.5 bg-white hover:bg-[#F8FAFC] active:bg-[#F1F5F9] transition cursor-pointer border-b border-[#E2E8F0]"
+          >
+            {/* Avatar */}
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#3B82F6] to-[#1E40AF] flex items-center justify-center text-white font-black text-lg shrink-0 shadow-md">
+              S
+            </div>
+            {/* Info */}
+            <div className="flex-1 min-w-0 text-left">
+              <div className="flex items-center justify-between mb-0.5">
+                <p className="text-[#0F172A] font-semibold text-[15px] truncate">Support Service</p>
+                <p className="text-[#94A3B8] text-xs shrink-0 ml-2">10:00</p>
+              </div>
+              <div className="flex items-center justify-between">
+                <p className="text-[#64748B] text-sm truncate">
+                  Assalomu Alaykum! Tarixiy ilovaga xush...
+                </p>
+                {/* Unread badge */}
+                <span className="ml-2 w-5 h-5 rounded-full bg-[#1E40AF] flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+                  1
+                </span>
+              </div>
+            </div>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     SUB-PAGE: SUPPORT CHAT
+  ═══════════════════════════════════════════════════════════════ */
+  if (activeSubPage === 'support-chat') {
+    return (
+      <div className="w-full max-w-md mx-auto min-h-screen bg-[#F0F2F5] text-[#1E293B] flex flex-col page-transition" style={{height:'100dvh'}}>
+        {/* Header */}
+        <div className="flex items-center gap-3 px-4 pt-10 pb-3 bg-white border-b border-[#E2E8F0] shrink-0 shadow-sm">
+          <button
+            type="button"
+            onClick={() => setActiveSubPage('suhbatlar')}
+            className="w-9 h-9 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] flex items-center justify-center text-[#1E293B] active:scale-95 transition cursor-pointer shrink-0"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#3B82F6] to-[#1E40AF] flex items-center justify-center text-white font-black text-base shrink-0 shadow-md">
+            S
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-[#0F172A] text-sm leading-tight">Support Service</p>
+            <p className="text-[11px] text-[#22C55E] font-medium">● Online</p>
+          </div>
+        </div>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3" style={{paddingBottom:'80px'}}>
+          {chatMessages.map((msg) => (
+            <div key={msg.id} className={`flex ${msg.from === 'user' ? 'justify-end' : 'justify-start'} items-end gap-2`}>
+              {msg.from === 'support' && (
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#3B82F6] to-[#1E40AF] flex items-center justify-center text-white font-black text-xs shrink-0 shadow">
+                  S
+                </div>
+              )}
+              <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl shadow-sm ${
+                msg.from === 'user'
+                  ? 'bg-[#1E40AF] text-white rounded-br-sm'
+                  : 'bg-white text-[#0F172A] rounded-bl-sm border border-[#E2E8F0]'
+              }`}>
+                <p className="text-sm leading-relaxed">{msg.text}</p>
+                <p className={`text-[10px] mt-1 text-right ${
+                  msg.from === 'user' ? 'text-white/60' : 'text-[#94A3B8]'
+                }`}>{msg.time}</p>
+              </div>
+            </div>
+          ))}
+          <div ref={chatEndRef} />
+        </div>
+
+        {/* Input bar */}
+        <div className="fixed bottom-0 left-0 right-0 flex justify-center pointer-events-none" style={{zIndex:50}}>
+          <div className="w-full max-w-[430px] pointer-events-auto">
+            <div className="bg-white border-t border-[#E2E8F0] px-3 py-3 flex items-center gap-2 shadow-lg">
+              {/* Sticker */}
+              <button type="button" className="w-9 h-9 rounded-full flex items-center justify-center text-[#64748B] hover:text-[#3B82F6] hover:bg-[#EFF6FF] transition shrink-0 cursor-pointer">
+                <Smile className="w-5 h-5" />
+              </button>
+              {/* Input */}
+              <input
+                type="text"
+                value={chatMessage}
+                onChange={(e) => setChatMessage(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                placeholder="Xabar yozing..."
+                className="flex-1 bg-[#F1F5F9] rounded-full px-4 py-2.5 text-sm text-[#0F172A] placeholder-[#94A3B8] outline-none border border-transparent focus:border-[#3B82F6] transition"
+              />
+              {/* Image */}
+              <button type="button" className="w-9 h-9 rounded-full flex items-center justify-center text-[#64748B] hover:text-[#3B82F6] hover:bg-[#EFF6FF] transition shrink-0 cursor-pointer">
+                <Image className="w-5 h-5" />
+              </button>
+              {/* Send */}
+              <button
+                type="button"
+                onClick={handleSendMessage}
+                className="w-10 h-10 rounded-full bg-[#1E40AF] flex items-center justify-center text-white active:scale-90 transition shrink-0 cursor-pointer shadow-md"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     SUB-PAGE: REFERAL (BELL ICON)
+  ═══════════════════════════════════════════════════════════════ */
+  if (activeSubPage === 'referral-page') {
+    return (
+      <div className="w-full max-w-md mx-auto min-h-screen bg-white text-[#1E293B] px-4 sm:px-5 pt-10 pb-24 flex flex-col page-transition">
+        <div className="flex items-center gap-3 mb-6">
+          <button
+            type="button"
+            onClick={() => setActiveSubPage(null)}
+            className="w-9 h-9 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] flex items-center justify-center text-[#1E293B] active:scale-95 transition cursor-pointer shrink-0"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <h1 className="text-lg font-bold text-[#0F172A]">Do'stni taklif qilish</h1>
+        </div>
+
+        {/* Banner */}
+        <div className="rounded-3xl p-6 mb-6 text-center relative overflow-hidden shadow-xl" style={{background:'linear-gradient(135deg,#FFB800 0%,#E8B84B 100%)'}}>
+          <div className="absolute -right-8 -top-8 w-32 h-32 rounded-full bg-white/20 pointer-events-none" />
+          <div className="absolute -left-6 -bottom-6 w-24 h-24 rounded-full bg-white/15 pointer-events-none" />
+          <div className="w-16 h-16 rounded-2xl bg-white/25 flex items-center justify-center mx-auto mb-3 shadow-inner">
+            <Gift className="w-8 h-8 text-white" strokeWidth={2} />
+          </div>
+          <h2 className="text-white font-black text-xl mb-1">100 tanga mukofot!</h2>
+          <p className="text-white/90 text-sm leading-relaxed">
+            Do'stlaringizni taklif qilib<br/>
+            <strong>100 tanga</strong> mukofot oling!
+          </p>
+        </div>
+
+        {/* Steps */}
+        <div className="space-y-3 mb-6">
+          {[
+            { num: '1', text: "Havolangizni do'stingizga yuboring", color: '#3B82F6' },
+            { num: '2', text: "Do'stingiz ro'yxatdan o'tsin", color: '#10B981' },
+            { num: '3', text: 'Ikkingizga ham 100 tanga beriladi! 🎉', color: '#F59E0B' },
+          ].map((step) => (
+            <div key={step.num} className="flex items-center gap-3 p-3.5 bg-[#F8FAFC] rounded-2xl border border-[#E2E8F0]">
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white font-black text-sm shrink-0" style={{background: step.color}}>
+                {step.num}
+              </div>
+              <p className="text-sm text-[#1E293B] font-medium">{step.text}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Referral link */}
+        <div className="p-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl flex items-center justify-between gap-2 mb-4">
+          <span className="text-[11px] font-semibold text-[#0F172A] truncate min-w-0">
+            tarixiy.uz/ref/{referralCode}
+          </span>
+          <button
+            type="button"
+            onClick={handleCopyReferral}
+            className="px-3 py-1.5 rounded-xl text-white text-xs font-bold transition flex items-center gap-1 shrink-0 cursor-pointer shadow-sm active:scale-95"
+            style={{background:'linear-gradient(135deg,#FFB800,#E8B84B)'}}
+          >
+            {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+            <span>{copied ? 'Nusxalandi!' : 'Nusxalash'}</span>
+          </button>
+        </div>
+
+        <button
+          type="button"
+          className="w-full py-3.5 rounded-2xl text-white font-bold text-sm shadow-lg active:scale-[0.98] cursor-pointer transition"
+          style={{background:'linear-gradient(135deg,#1E40AF,#3B82F6)'}}
+        >
+          Ulashish 🚀
+        </button>
+      </div>
+    );
+  }
 
   /* ═══════════════════════════════════════════════════════════════
      SUB-PAGE: MAGAZIN
@@ -201,29 +444,32 @@ export default function HomePage({ userData }) {
           <h1 className="text-[#0F172A] font-extrabold text-[22px] sm:text-[24px] tracking-tight">Tarixiy</h1>
 
           {/* O'ng: xabar + qo'ng'iroq */}
-          <div className="flex items-center gap-0">
-            {/* Inbox button */}
+          <div className="flex items-center gap-1">
+            {/* Support Chat button */}
             <button
               type="button"
               aria-label="Xabarlar"
-              onClick={() => setIsReferralModalOpen(true)}
-              className="inbox-btn cursor-pointer"
+              onClick={() => {
+                setActiveSubPage('suhbatlar');
+                window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+              }}
+              className="relative w-10 h-10 flex items-center justify-center rounded-xl hover:bg-[#F1F5F9] active:scale-90 transition cursor-pointer text-[#475569]"
             >
-              <svg viewBox="0 0 512 512" height="16" xmlns="http://www.w3.org/2000/svg">
-                <path
-                  d="M48 64C21.5 64 0 85.5 0 112c0 15.1 7.1 29.3 19.2 38.4L236.8 313.6c11.4 8.5 27 8.5 38.4 0L492.8 150.4c12.1-9.1 19.2-23.3 19.2-38.4c0-26.5-21.5-48-48-48H48zM0 176V384c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V176L294.4 339.2c-22.8 17.1-54 17.1-76.8 0L0 176z"
-                ></path>
-              </svg>
+              <Mail className="w-5 h-5" />
+              {/* Yangi xabar belgisi */}
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#EF4444] rounded-full border-2 border-white" />
             </button>
-            {/* Bell button */}
-            <button type="button" aria-label="Bildirishnomalar" className="notif-bell-btn">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
-                <path fill="none" d="M0 0h24v24H0z"></path>
-                <path
-                  fill="currentColor"
-                  d="M20 17h2v2H2v-2h2v-7a8 8 0 1 1 16 0v7zm-2 0v-7a6 6 0 1 0-12 0v7h12zm-9 4h6v2H9v-2z"
-                ></path>
-              </svg>
+            {/* Referral / Bell button */}
+            <button
+              type="button"
+              aria-label="Bildirishnomalar"
+              onClick={() => {
+                setActiveSubPage('referral-page');
+                window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+              }}
+              className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-[#F1F5F9] active:scale-90 transition cursor-pointer text-[#475569]"
+            >
+              <Bell className="w-5 h-5" />
             </button>
           </div>
         </div>
