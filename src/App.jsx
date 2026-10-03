@@ -29,18 +29,18 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#06080E] text-white flex justify-center selection:bg-[#E8B84B] selection:text-[#0D1117]">
+    <div className="min-h-screen bg-[#F1F5F9] text-[#1E293B] flex justify-center selection:bg-[#E8B84B] selection:text-[#0D1117]">
       {/* ── ASOSIY SMARTFON KONTEYNERI (Desktopda ham, mobilda ham telefon formati) ── */}
-      <div className="w-full max-w-[430px] min-h-screen bg-[#0C0F18] relative shadow-[0_0_60px_rgba(0,0,0,0.85)] sm:border-x border-[#1E2638]/60 flex flex-col overflow-x-hidden">
+      <div className="w-full max-w-[430px] min-h-screen bg-white relative shadow-[0_10px_40px_rgba(0,0,0,0.08)] sm:border-x border-[#E2E8F0] flex flex-col overflow-x-hidden">
         {appState === 'register' && (
-          <div className="min-h-screen bg-[#0C0F18] flex flex-col justify-center items-center p-4 page-transition">
+          <div className="min-h-screen bg-white flex flex-col justify-center items-center p-4 page-transition">
             <RegisterWizard onComplete={handleRegistrationComplete} />
           </div>
         )}
 
         {appState === 'app' && (
           <>
-            <main key={activeTab} className="flex-1 page-transition pb-20">
+            <main key={activeTab} className="flex-1 page-transition pb-20 bg-white">
               {activeTab === 'home' && (
                 <HomePage
                   userData={userData}

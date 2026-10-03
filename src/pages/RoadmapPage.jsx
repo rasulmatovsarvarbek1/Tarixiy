@@ -135,7 +135,7 @@ function ClassGatePortal({ gradeNumber, gradeTitle, isUnlocked = false }) {
 
       {/* Eshik / Ark konteyneri */}
       <div className="relative w-full max-w-[305px] min-[360px]:max-w-[340px] bg-gradient-to-b from-[#1C2333]/95 to-[#121622]/95 border-2 border-[#D4921A]/70 rounded-2xl min-[360px]:rounded-3xl pt-6 min-[360px]:pt-7 pb-3.5 min-[360px]:pb-4 px-3 min-[360px]:px-4 shadow-[0_10px_35px_rgba(0,0,0,0.8),0_0_20px_rgba(212,146,26,0.25)] flex flex-col items-center">
-        
+
         {/* Yuqori Ark Naqshi (Oriental Crown) - Darvoza ustida, hech narsa uni to'sib qo'ymaydi */}
         <div className="absolute -top-4 min-[360px]:-top-5 z-20 px-3.5 min-[360px]:px-5 py-1 min-[360px]:py-1.5 rounded-full bg-gradient-to-r from-[#8A5507] via-[#D4921A] to-[#8A5507] border-2 border-[#FFE885] shadow-[0_6px_20px_rgba(212,146,26,0.7)] flex items-center gap-1.5 min-[360px]:gap-2">
           <Sparkles className="w-3 h-3 min-[360px]:w-3.5 min-[360px]:h-3.5 text-white animate-spin shrink-0" style={{ animationDuration: '4s' }} />
@@ -164,11 +164,11 @@ function ClassGatePortal({ gradeNumber, gradeTitle, isUnlocked = false }) {
             />
             {/* Eshik bo'linmasi (ikkita qanot) */}
             <line x1="110" y1="18" x2="110" y2="95" stroke="#8A5507" strokeWidth="2.5" strokeDasharray="3 3" />
-            
+
             {/* Eshik halqalari / dastaklari */}
             <circle cx="95" cy="62" r="6" stroke="#FFD800" strokeWidth="2" fill="#3D2914" />
             <circle cx="125" cy="62" r="6" stroke="#FFD800" strokeWidth="2" fill="#3D2914" />
-            
+
             {/* Naqshlar */}
             <path d="M 60 76 Q 110 58, 160 76" stroke="#D4921A" strokeWidth="1.2" strokeDasharray="4 4" fill="none" />
             <path d="M 60 44 Q 110 28, 160 44" stroke="#D4921A" strokeWidth="1.2" strokeDasharray="4 4" fill="none" />
@@ -193,7 +193,7 @@ function ClassGatePortal({ gradeNumber, gradeTitle, isUnlocked = false }) {
   );
 }
 
-export default function RoadmapPage() {
+export default function RoadmapPage({ onNavigate }) {
   const [toast, setToast] = useState(null);
   const [shakingId, setShakingId] = useState(null);
 
@@ -210,268 +210,287 @@ export default function RoadmapPage() {
   };
 
   return (
-    <div className="text-[#FFFFFF] relative select-none pb-28 w-full overflow-x-hidden">
+    <div className="text-[#1E293B] relative select-none pb-28 w-full overflow-x-hidden bg-white">
 
       {/* ── FIXED FROZEN BACKGROUND IMAGE (Telefon ramkasi ichida qoladi) ── */}
       <img
         src="/roadmap_bg.jpg"
         alt=""
         aria-hidden="true"
-        className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] h-screen object-cover z-0 pointer-events-none select-none"
+        className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] h-screen object-cover z-0 pointer-events-none select-none opacity-80"
       />
-      {/* Dark overlay for high contrast & readability */}
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] h-screen bg-black/45 z-[1] pointer-events-none" />
+      {/* Light overlay for clean readability */}
+      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] h-screen bg-white/40 backdrop-blur-[1px] z-[1] pointer-events-none" />
 
       {/* Scrollable content sits above fixed bg */}
       <div className="relative z-10 w-full">
 
-      {/* ─── YUQORI PROGRESS SARLAVHA ─── */}
-      <header className="sticky top-0 z-40 bg-[#0C0F18]/85 backdrop-blur-md border-b border-[#1E2638] py-3 min-[360px]:py-3.5 px-3 min-[360px]:px-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#0080FF] shadow-[0_0_8px_#0080FF] shrink-0" />
-            <h1 className="text-[17px] min-[360px]:text-[19px] sm:text-[20px] font-bold text-white tracking-tight truncate">
-              Tarix Yo'lagi • 70 Level
+        {/* ─── YUQORI SARLAVHA: Darslar + Yulduz & Tanga ─── */}
+        <header className="sticky top-0 z-40 bg-white/92 backdrop-blur-md border-b border-[#E2E8F0] py-3 min-[360px]:py-3.5 px-3 min-[360px]:px-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <h1 className="text-[18px] min-[360px]:text-[20px] sm:text-[22px] font-extrabold text-[#0F172A] tracking-tight truncate">
+              Darslar
             </h1>
-          </div>
-          <span className="text-[14px] min-[360px]:text-[15px] font-bold text-white/80 shrink-0 ml-2">
-            1%
-          </span>
-        </div>
-      </header>
 
-      {/* Toast Alert */}
-      {toast && (
-        <div className="fixed top-16 left-1/2 -translate-x-1/2 w-[92%] max-w-[390px] z-50 p-3 min-[360px]:p-3.5 rounded-2xl bg-[#1C1F2B] border border-[#0080FF]/50 text-[12px] min-[360px]:text-[13px] text-white shadow-2xl flex items-center gap-2.5 animate-bounce">
-          <AlertCircle className="w-4 h-4 text-[#0080FF] shrink-0" />
-          <span className="leading-snug">{toast}</span>
-        </div>
-      )}
+            {/* O'ng tomon: Yulduz (Top Reyting) + Tanga (Magazin) */}
+            <div className="flex items-center gap-2 shrink-0">
+              {/* Oq Yulduz → Top Reyting */}
+              <button
+                type="button"
+                onClick={() => onNavigate?.('ranking')}
+                className="flex items-center gap-1.5 bg-[#F8FAFC] hover:bg-[#F1F5F9] border border-[#E2E8F0] rounded-full px-2.5 py-1.5 transition-all active:scale-95 cursor-pointer group shadow-sm"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" className="shrink-0 drop-shadow-[0_0_4px_rgba(255,184,0,0.5)] group-hover:scale-110 transition-transform">
+                  <path d="M12 2l2.4 7.2H22l-6 4.8 2.4 7.2L12 16.4 5.6 21.2 8 14 2 9.2h7.6z" fill="#FFB800" />
+                </svg>
+                <span className="text-[13px] font-bold text-[#1E293B]">116</span>
+              </button>
 
-      {/* ─── QUEST PATH CONTAINER ─── */}
-      <main className="px-2 min-[360px]:px-3 pt-4 min-[360px]:pt-5 relative">
-        
-        {/* 1-10 Level dan oldin yo'lak tepasidagi 5-SINF SARLAVHASI / ESHIGI */}
-        <div className="mb-6 min-[360px]:mb-8">
-          <div className="relative w-full max-w-[305px] min-[360px]:max-w-[340px] mx-auto bg-gradient-to-r from-[#D4921A]/20 via-[#D4921A]/40 to-[#D4921A]/20 border-2 border-[#D4921A] rounded-2xl py-2.5 min-[360px]:py-3 px-3 min-[360px]:px-4 shadow-[0_4px_25px_rgba(212,146,26,0.3)] text-center">
-            <div className="flex items-center justify-center gap-1.5 min-[360px]:gap-2">
-              <Sparkles className="w-3.5 h-3.5 min-[360px]:w-4 min-[360px]:h-4 text-[#FFD800] shrink-0" />
-              <h2 className="text-[14px] min-[360px]:text-[16px] sm:text-[17px] font-extrabold text-white tracking-wide uppercase drop-shadow">
-                5-sinf • Qadimgi Dunyo
-              </h2>
-              <Sparkles className="w-3.5 h-3.5 min-[360px]:w-4 min-[360px]:h-4 text-[#FFD800] shrink-0" />
+              {/* Sariq Tanga → Magazin */}
+              <button
+                type="button"
+                onClick={() => onNavigate?.('magazin')}
+                className="flex items-center gap-1.5 bg-[#F8FAFC] hover:bg-[#F1F5F9] border border-[#E2E8F0] rounded-full px-2.5 py-1.5 transition-all active:scale-95 cursor-pointer group shadow-sm"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" className="shrink-0 group-hover:scale-110 transition-transform">
+                  <circle cx="12" cy="12" r="10" fill="#FFB800" />
+                  <circle cx="12" cy="12" r="7.5" fill="#E6A200" />
+                  <circle cx="12" cy="12" r="6" fill="#FFD54F" />
+                  <text x="12" y="16" textAnchor="middle" fontSize="10" fontWeight="bold" fill="#B8860B">$</text>
+                </svg>
+                <span className="text-[13px] font-bold text-[#1E293B]">16</span>
+              </button>
             </div>
-            <p className="text-[10.5px] min-[360px]:text-[11px] font-medium text-white/75 mt-0.5">
-              1-bosqich: 1 Level — 10 Level
-            </p>
           </div>
-        </div>
+        </header>
 
-        {/* 1 Level ustidagi to'g'ri qaratilgan "Sizning darsingiz shu yerda" ko'rsatkichi */}
-        <div className="relative mb-2 pl-2 min-[360px]:pl-4 flex flex-col items-start z-30">
-          <div className="flex items-center gap-1.5 min-[360px]:gap-2 bg-[#222634] border border-[#353B4F] text-white px-2.5 min-[360px]:px-3.5 py-1 min-[360px]:py-1.5 rounded-xl shadow-2xl animate-bounce">
-            <span className="text-[11px] min-[360px]:text-[12px] font-bold tracking-wide whitespace-nowrap text-white">
-              Sizning darsingiz shu yerda
-            </span>
-            <div className="w-2 h-2 rounded-full bg-[#0080FF] animate-ping shrink-0" />
+        {/* Toast Alert */}
+        {toast && (
+          <div className="fixed top-16 left-1/2 -translate-x-1/2 w-[92%] max-w-[390px] z-50 p-3 min-[360px]:p-3.5 rounded-2xl bg-white border border-[#3B82F6]/50 text-[12px] min-[360px]:text-[13px] text-[#0F172A] shadow-2xl flex items-center gap-2.5 animate-bounce">
+            <AlertCircle className="w-4 h-4 text-[#2563EB] shrink-0" />
+            <span className="leading-snug font-medium">{toast}</span>
           </div>
-          {/* Pastga qaratilgan kichik ko'rsatkich nayzasi */}
-          <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[7px] border-t-[#222634] ml-6 min-[360px]:ml-8 -mt-0.5" />
-        </div>
+        )}
 
-        {/* 70 ta Level darslarining zigzag yo'li */}
-        <div className="space-y-10 min-[360px]:space-y-12 relative pt-2">
-          {LEVELS_DATA.map((level, index) => {
-            const isLeft = index % 2 === 0;
-            const isShaking = shakingId === level.id;
-            const isOpen = !level.isLocked;
-            const nextLevel = LEVELS_DATA[index + 1];
+        {/* ─── QUEST PATH CONTAINER ─── */}
+        <main className="px-2 min-[360px]:px-3 pt-4 min-[360px]:pt-5 relative">
 
-            const isEndOfGrade = level.id % 10 === 0 && level.id < 70;
-            const nextGradeConfig = isEndOfGrade ? GRADES_CONFIG.find(g => g.grade === (level.grade + 1)) : null;
+          {/* 1-10 Level dan oldin yo'lak tepasidagi 5-SINF SARLAVHASI / ESHIGI */}
+          <div className="mb-6 min-[360px]:mb-8">
+            <div className="relative w-full max-w-[305px] min-[360px]:max-w-[340px] mx-auto bg-gradient-to-r from-[#D4921A]/20 via-[#D4921A]/40 to-[#D4921A]/20 border-2 border-[#D4921A] rounded-2xl py-2.5 min-[360px]:py-3 px-3 min-[360px]:px-4 shadow-[0_4px_25px_rgba(212,146,26,0.3)] text-center">
+              <div className="flex items-center justify-center gap-1.5 min-[360px]:gap-2">
+                <Sparkles className="w-3.5 h-3.5 min-[360px]:w-4 min-[360px]:h-4 text-[#FFD800] shrink-0" />
+                <h2 className="text-[14px] min-[360px]:text-[16px] sm:text-[17px] font-extrabold text-white tracking-wide uppercase drop-shadow">
+                  5-sinf • Qadimgi Dunyo
+                </h2>
+                <Sparkles className="w-3.5 h-3.5 min-[360px]:w-4 min-[360px]:h-4 text-[#FFD800] shrink-0" />
+              </div>
+              <p className="text-[10.5px] min-[360px]:text-[11px] font-medium text-white/75 mt-0.5">
+                1-bosqich: 1 Level — 10 Level
+              </p>
+            </div>
+          </div>
 
-            return (
-              <div key={level.id} className="relative">
-                
-                {/* ── KARTA SATRI ── */}
-                <div className={`flex items-center ${isLeft ? 'justify-start pl-1 min-[360px]:pl-3 sm:pl-4' : 'justify-end pr-1 min-[360px]:pr-3 sm:pr-4'}`}>
-                  
-                  {/* 3D Duolingo uslubidagi Karta */}
-                  <div
-                    onClick={() => handleCardClick(level)}
-                    className={`relative w-[138px] h-[138px] min-[360px]:w-[148px] min-[360px]:h-[148px] min-[390px]:w-[155px] min-[390px]:h-[155px] sm:w-[160px] sm:h-[160px] rounded-[22px] min-[360px]:rounded-[26px] p-3 min-[360px]:p-4 flex flex-col justify-between cursor-pointer transition-all duration-150 select-none group shrink-0 ${
-                      isShaking ? 'animate-shake' : ''
-                    } ${
-                      isOpen
-                        ? 'bg-gradient-to-b from-[#D4921A] to-[#B8760A] border-b-[6px] min-[360px]:border-b-[8px] border-[#8A5507] shadow-[0_12px_28px_rgba(180,110,10,0.5)] active:translate-y-1 active:border-b-[3px]'
-                        : 'bg-[#1A1C24] border-b-[6px] min-[360px]:border-b-[8px] border-[#111318] shadow-[0_8px_18px_rgba(0,0,0,0.7)] active:translate-y-1 active:border-b-[3px] hover:bg-[#1E2028]'
-                    }`}
-                  >
-                    {/* Yuqori qism: Foiz va Qulf belgisi */}
-                    <div className="flex items-center justify-between">
-                      <span className={`text-[21px] min-[360px]:text-[24px] font-extrabold leading-none tracking-tight ${
-                        isOpen ? 'text-white' : 'text-white/80'
+          {/* 1 Level ustidagi to'g'ri qaratilgan "Sizning darsingiz shu yerda" ko'rsatkichi */}
+          <div className="relative mb-2 pl-2 min-[360px]:pl-4 flex flex-col items-start z-30">
+            <div className="flex items-center gap-1.5 min-[360px]:gap-2 bg-[#222634] border border-[#353B4F] text-white px-2.5 min-[360px]:px-3.5 py-1 min-[360px]:py-1.5 rounded-xl shadow-2xl animate-bounce">
+              <span className="text-[11px] min-[360px]:text-[12px] font-bold tracking-wide whitespace-nowrap text-white">
+                Sizning darsingiz shu yerda
+              </span>
+              <div className="w-2 h-2 rounded-full bg-[#0080FF] animate-ping shrink-0" />
+            </div>
+            {/* Pastga qaratilgan kichik ko'rsatkich nayzasi */}
+            <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[7px] border-t-[#222634] ml-6 min-[360px]:ml-8 -mt-0.5" />
+          </div>
+
+          {/* 70 ta Level darslarining zigzag yo'li */}
+          <div className="space-y-10 min-[360px]:space-y-12 relative pt-2">
+            {LEVELS_DATA.map((level, index) => {
+              const isLeft = index % 2 === 0;
+              const isShaking = shakingId === level.id;
+              const isOpen = !level.isLocked;
+              const nextLevel = LEVELS_DATA[index + 1];
+
+              const isEndOfGrade = level.id % 10 === 0 && level.id < 70;
+              const nextGradeConfig = isEndOfGrade ? GRADES_CONFIG.find(g => g.grade === (level.grade + 1)) : null;
+
+              return (
+                <div key={level.id} className="relative">
+
+                  {/* ── KARTA SATRI ── */}
+                  <div className={`flex items-center ${isLeft ? 'justify-start pl-1 min-[360px]:pl-3 sm:pl-4' : 'justify-end pr-1 min-[360px]:pr-3 sm:pr-4'}`}>
+
+                    {/* 3D Duolingo uslubidagi Karta */}
+                    <div
+                      onClick={() => handleCardClick(level)}
+                      className={`relative w-[138px] h-[138px] min-[360px]:w-[148px] min-[360px]:h-[148px] min-[390px]:w-[155px] min-[390px]:h-[155px] sm:w-[160px] sm:h-[160px] rounded-[22px] min-[360px]:rounded-[26px] p-3 min-[360px]:p-4 flex flex-col justify-between cursor-pointer transition-all duration-150 select-none group shrink-0 ${isShaking ? 'animate-shake' : ''
+                        } ${isOpen
+                          ? 'bg-gradient-to-b from-[#D4921A] to-[#B8760A] border-b-[6px] min-[360px]:border-b-[8px] border-[#8A5507] shadow-[0_12px_28px_rgba(180,110,10,0.5)] active:translate-y-1 active:border-b-[3px]'
+                          : 'bg-[#1A1C24] border-b-[6px] min-[360px]:border-b-[8px] border-[#111318] shadow-[0_8px_18px_rgba(0,0,0,0.7)] active:translate-y-1 active:border-b-[3px] hover:bg-[#1E2028]'
+                        }`}
+                    >
+                      {/* Yuqori qism: Foiz va Qulf belgisi */}
+                      <div className="flex items-center justify-between">
+                        <span className={`text-[21px] min-[360px]:text-[24px] font-extrabold leading-none tracking-tight ${isOpen ? 'text-white' : 'text-white/80'
+                          }`}>
+                          {level.progress}%
+                        </span>
+                        {level.isLocked ? (
+                          <div className="w-6 h-6 min-[360px]:w-7 min-[360px]:h-7 rounded-full bg-[#181A24] flex items-center justify-center text-white/50">
+                            <Lock className="w-3 h-3 min-[360px]:w-3.5 min-[360px]:h-3.5" />
+                          </div>
+                        ) : (
+                          <div className="w-6 h-6 min-[360px]:w-7 min-[360px]:h-7 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white">
+                            <Sparkles className="w-3.5 h-3.5 min-[360px]:w-4 min-[360px]:h-4" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Pastki qism: Level raqami va Tarixiy mavzusi */}
+                      <div>
+                        <h3 className="text-[17px] min-[360px]:text-[19px] font-extrabold text-white leading-tight">
+                          {level.title}
+                        </h3>
+                        <p className={`text-[10px] min-[360px]:text-[11px] font-medium mt-0.5 truncate ${isOpen ? 'text-white/85' : 'text-white/40'
+                          }`}>
+                          {level.topic}
+                        </p>
+                      </div>
+
+                      {/* Inner highlight effekti (Yuqori yaltirash chizig'i) */}
+                      <div className="absolute top-1.5 inset-x-4 h-[3px] rounded-full bg-white/25 pointer-events-none" />
+                    </div>
+
+                    {/* Karta yonidagi bezaklar (Yulduzlar & Bulutlar) */}
+                    <div className={`absolute pointer-events-none ${isLeft
+                      ? 'left-[145px] min-[360px]:left-[162px] min-[390px]:left-[178px]'
+                      : 'right-[145px] min-[360px]:right-[162px] min-[390px]:right-[178px]'
                       }`}>
-                        {level.progress}%
-                      </span>
-                      {level.isLocked ? (
-                        <div className="w-6 h-6 min-[360px]:w-7 min-[360px]:h-7 rounded-full bg-[#181A24] flex items-center justify-center text-white/50">
-                          <Lock className="w-3 h-3 min-[360px]:w-3.5 min-[360px]:h-3.5" />
+                      {index % 3 === 0 && (
+                        <div className="flex items-center gap-2 min-[360px]:gap-3">
+                          <CloudCluster className="transform scale-75 min-[360px]:scale-90" />
+                          <GoldenStar size={18} className="animate-pulse min-[360px]:w-[22px] min-[360px]:h-[22px]" />
                         </div>
-                      ) : (
-                        <div className="w-6 h-6 min-[360px]:w-7 min-[360px]:h-7 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white">
-                          <Sparkles className="w-3.5 h-3.5 min-[360px]:w-4 min-[360px]:h-4" />
+                      )}
+                      {index % 3 === 1 && (
+                        <div className="flex flex-col gap-1.5 min-[360px]:gap-2 pt-1">
+                          <GoldenStar size={22} className="transform rotate-12 min-[360px]:w-[26px] min-[360px]:h-[26px]" />
+                          <GoldenStar size={14} className="transform -rotate-12 ml-3 min-[360px]:ml-4 min-[360px]:w-[16px] min-[360px]:h-[16px]" />
+                        </div>
+                      )}
+                      {index % 3 === 2 && (
+                        <div className="flex items-center gap-1.5 min-[360px]:gap-2">
+                          <GoldenStar size={16} className="min-[360px]:w-[20px] min-[360px]:h-[20px]" />
+                          <CloudCluster className="transform scale-65 min-[360px]:scale-75 opacity-80" />
                         </div>
                       )}
                     </div>
 
-                    {/* Pastki qism: Level raqami va Tarixiy mavzusi */}
-                    <div>
-                      <h3 className="text-[17px] min-[360px]:text-[19px] font-extrabold text-white leading-tight">
-                        {level.title}
-                      </h3>
-                      <p className={`text-[10px] min-[360px]:text-[11px] font-medium mt-0.5 truncate ${
-                        isOpen ? 'text-white/85' : 'text-white/40'
-                      }`}>
-                        {level.topic}
-                      </p>
+                  </div>
+
+                  {/* ── BOG'LOVCHI CHIZIQLI YO'L (DASHED PATH) ── */}
+                  {nextLevel && !isEndOfGrade && (
+                    <div className="w-full h-11 min-[360px]:h-12 relative pointer-events-none my-1 flex justify-center">
+                      <svg
+                        width="100%"
+                        height="56"
+                        viewBox="0 0 340 56"
+                        fill="none"
+                        className="overflow-visible"
+                      >
+                        {isLeft ? (
+                          /* Chapdagi kartadan o'ngdagi kartaga o'tish */
+                          <path
+                            d="M 80 0 C 80 35, 260 20, 260 56"
+                            stroke="#FFD800"
+                            strokeWidth="4.5"
+                            strokeDasharray="8 8"
+                            strokeLinecap="round"
+                          />
+                        ) : (
+                          /* O'ngdagi kartadan chapdagi kartaga o'tish */
+                          <path
+                            d="M 260 0 C 260 35, 80 20, 80 56"
+                            stroke="#FFD800"
+                            strokeWidth="4.5"
+                            strokeDasharray="8 8"
+                            strokeLinecap="round"
+                          />
+                        )}
+                      </svg>
+
+                      {/* Chiziq o'rtasidagi yulduzcha */}
+                      <div className="absolute top-2.5 min-[360px]:top-3 inset-x-0 flex justify-center pointer-events-none">
+                        <GoldenStar size={index % 2 === 0 ? 16 : 20} className="opacity-90" />
+                      </div>
                     </div>
+                  )}
 
-                    {/* Inner highlight effekti (Yuqori yaltirash chizig'i) */}
-                    <div className="absolute top-1.5 inset-x-4 h-[3px] rounded-full bg-white/25 pointer-events-none" />
-                  </div>
+                  {/* ── 10, 20, 30, 40, 50, 60 LEVELDAN KEYIN YO'L USTIDAGI ESHIK / DARVOZA (GATE) ── */}
+                  {isEndOfGrade && nextGradeConfig && (
+                    <div className="my-3 min-[360px]:my-4 w-full">
+                      {/* Kartadan eshikka tushuvchi sariq yo'l */}
+                      <div className="w-full h-9 min-[360px]:h-10 relative pointer-events-none flex justify-center">
+                        <svg width="100%" height="45" viewBox="0 0 340 45" fill="none">
+                          <path
+                            d={isLeft ? "M 80 0 C 80 25, 170 15, 170 45" : "M 260 0 C 260 25, 170 15, 170 45"}
+                            stroke="#FFD800"
+                            strokeWidth="4.5"
+                            strokeDasharray="8 8"
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                        <div className="absolute top-1.5 inset-x-0 flex justify-center">
+                          <GoldenStar size={18} />
+                        </div>
+                      </div>
 
-                  {/* Karta yonidagi bezaklar (Yulduzlar & Bulutlar) */}
-                  <div className={`absolute pointer-events-none ${
-                    isLeft 
-                      ? 'left-[145px] min-[360px]:left-[162px] min-[390px]:left-[178px]' 
-                      : 'right-[145px] min-[360px]:right-[162px] min-[390px]:right-[178px]'
-                  }`}>
-                    {index % 3 === 0 && (
-                      <div className="flex items-center gap-2 min-[360px]:gap-3">
-                        <CloudCluster className="transform scale-75 min-[360px]:scale-90" />
-                        <GoldenStar size={18} className="animate-pulse min-[360px]:w-[22px] min-[360px]:h-[22px]" />
+                      {/* Sharqona Kirish Eshigi (Portal) */}
+                      <ClassGatePortal
+                        gradeNumber={nextGradeConfig.grade}
+                        gradeTitle={nextGradeConfig.title}
+                        isUnlocked={false}
+                      />
+
+                      {/* Eshikdan keyingi 1-kartaga ulovchi sariq yo'l */}
+                      <div className="w-full h-9 min-[360px]:h-10 relative pointer-events-none flex justify-center">
+                        <svg width="100%" height="45" viewBox="0 0 340 45" fill="none">
+                          <path
+                            d={(index + 1) % 2 === 0 ? "M 170 0 C 170 25, 80 20, 80 45" : "M 170 0 C 170 25, 260 20, 260 45"}
+                            stroke="#FFD800"
+                            strokeWidth="4.5"
+                            strokeDasharray="8 8"
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                        <div className="absolute top-1.5 inset-x-0 flex justify-center">
+                          <GoldenStar size={18} />
+                        </div>
                       </div>
-                    )}
-                    {index % 3 === 1 && (
-                      <div className="flex flex-col gap-1.5 min-[360px]:gap-2 pt-1">
-                        <GoldenStar size={22} className="transform rotate-12 min-[360px]:w-[26px] min-[360px]:h-[26px]" />
-                        <GoldenStar size={14} className="transform -rotate-12 ml-3 min-[360px]:ml-4 min-[360px]:w-[16px] min-[360px]:h-[16px]" />
-                      </div>
-                    )}
-                    {index % 3 === 2 && (
-                      <div className="flex items-center gap-1.5 min-[360px]:gap-2">
-                        <GoldenStar size={16} className="min-[360px]:w-[20px] min-[360px]:h-[20px]" />
-                        <CloudCluster className="transform scale-65 min-[360px]:scale-75 opacity-80" />
-                      </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
 
                 </div>
-
-                {/* ── BOG'LOVCHI CHIZIQLI YO'L (DASHED PATH) ── */}
-                {nextLevel && !isEndOfGrade && (
-                  <div className="w-full h-11 min-[360px]:h-12 relative pointer-events-none my-1 flex justify-center">
-                    <svg
-                      width="100%"
-                      height="56"
-                      viewBox="0 0 340 56"
-                      fill="none"
-                      className="overflow-visible"
-                    >
-                      {isLeft ? (
-                        /* Chapdagi kartadan o'ngdagi kartaga o'tish */
-                        <path
-                          d="M 80 0 C 80 35, 260 20, 260 56"
-                          stroke="#FFD800"
-                          strokeWidth="4.5"
-                          strokeDasharray="8 8"
-                          strokeLinecap="round"
-                        />
-                      ) : (
-                        /* O'ngdagi kartadan chapdagi kartaga o'tish */
-                        <path
-                          d="M 260 0 C 260 35, 80 20, 80 56"
-                          stroke="#FFD800"
-                          strokeWidth="4.5"
-                          strokeDasharray="8 8"
-                          strokeLinecap="round"
-                        />
-                      )}
-                    </svg>
-
-                    {/* Chiziq o'rtasidagi yulduzcha */}
-                    <div className="absolute top-2.5 min-[360px]:top-3 inset-x-0 flex justify-center pointer-events-none">
-                      <GoldenStar size={index % 2 === 0 ? 16 : 20} className="opacity-90" />
-                    </div>
-                  </div>
-                )}
-
-                {/* ── 10, 20, 30, 40, 50, 60 LEVELDAN KEYIN YO'L USTIDAGI ESHIK / DARVOZA (GATE) ── */}
-                {isEndOfGrade && nextGradeConfig && (
-                  <div className="my-3 min-[360px]:my-4 w-full">
-                    {/* Kartadan eshikka tushuvchi sariq yo'l */}
-                    <div className="w-full h-9 min-[360px]:h-10 relative pointer-events-none flex justify-center">
-                      <svg width="100%" height="45" viewBox="0 0 340 45" fill="none">
-                        <path
-                          d={isLeft ? "M 80 0 C 80 25, 170 15, 170 45" : "M 260 0 C 260 25, 170 15, 170 45"}
-                          stroke="#FFD800"
-                          strokeWidth="4.5"
-                          strokeDasharray="8 8"
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                      <div className="absolute top-1.5 inset-x-0 flex justify-center">
-                        <GoldenStar size={18} />
-                      </div>
-                    </div>
-
-                    {/* Sharqona Kirish Eshigi (Portal) */}
-                    <ClassGatePortal
-                      gradeNumber={nextGradeConfig.grade}
-                      gradeTitle={nextGradeConfig.title}
-                      isUnlocked={false}
-                    />
-
-                    {/* Eshikdan keyingi 1-kartaga ulovchi sariq yo'l */}
-                    <div className="w-full h-9 min-[360px]:h-10 relative pointer-events-none flex justify-center">
-                      <svg width="100%" height="45" viewBox="0 0 340 45" fill="none">
-                        <path
-                          d={(index + 1) % 2 === 0 ? "M 170 0 C 170 25, 80 20, 80 45" : "M 170 0 C 170 25, 260 20, 260 45"}
-                          stroke="#FFD800"
-                          strokeWidth="4.5"
-                          strokeDasharray="8 8"
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                      <div className="absolute top-1.5 inset-x-0 flex justify-center">
-                        <GoldenStar size={18} />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-              </div>
-            );
-          })}
-        </div>
-
-        {/* ─── 70-LEVELDAN KEYINGI YAKUNIY BITIRUV QASRI (GRAND FINALE PORTAL) ─── */}
-        <div className="mt-14 min-[360px]:mt-16 pt-7 min-[360px]:pt-8 pb-10 min-[360px]:pb-12 text-center border-t-2 border-[#D4921A]/40 flex flex-col items-center px-2">
-          <div className="w-16 h-16 min-[360px]:w-20 min-[360px]:h-20 rounded-2xl min-[360px]:rounded-3xl bg-gradient-to-tr from-[#D4921A] to-[#FFE066] p-0.5 shadow-[0_0_30px_rgba(212,146,26,0.6)] mb-3 min-[360px]:mb-4 animate-pulse">
-            <div className="w-full h-full bg-[#121622] rounded-[18px] min-[360px]:rounded-[22px] flex items-center justify-center text-3xl min-[360px]:text-4xl">
-              👑
-            </div>
+              );
+            })}
           </div>
-          <h4 className="text-[17px] min-[360px]:text-[19px] font-extrabold text-[#FFD800] mb-1">
-            Katta Tarixiy G'alaba & Sertifikat
-          </h4>
-          <p className="text-[12px] min-[360px]:text-[13px] text-white/70 max-w-[290px] min-[360px]:max-w-xs leading-relaxed">
-            70 ta Levelni to'liq yakunlab, 5-sinfdan 11-sinfgacha bo'lgan barcha tarixiy bilimlarni mukammal egallang va maxsus Sertifikatga ega bo'ling!
-          </p>
-        </div>
 
-      </main>
+          {/* ─── 70-LEVELDAN KEYINGI YAKUNIY BITIRUV QASRI (GRAND FINALE PORTAL) ─── */}
+          <div className="mt-14 min-[360px]:mt-16 pt-7 min-[360px]:pt-8 pb-10 min-[360px]:pb-12 text-center border-t-2 border-[#D4921A]/40 flex flex-col items-center px-2">
+            <div className="w-16 h-16 min-[360px]:w-20 min-[360px]:h-20 rounded-2xl min-[360px]:rounded-3xl bg-gradient-to-tr from-[#D4921A] to-[#FFE066] p-0.5 shadow-[0_0_30px_rgba(212,146,26,0.6)] mb-3 min-[360px]:mb-4 animate-pulse">
+              <div className="w-full h-full bg-[#121622] rounded-[18px] min-[360px]:rounded-[22px] flex items-center justify-center text-3xl min-[360px]:text-4xl">
+                👑
+              </div>
+            </div>
+            <h4 className="text-[17px] min-[360px]:text-[19px] font-extrabold text-[#FFD800] mb-1">
+              Katta Tarixiy G'alaba & Sertifikat
+            </h4>
+            <p className="text-[12px] min-[360px]:text-[13px] text-white/70 max-w-[290px] min-[360px]:max-w-xs leading-relaxed">
+              70 ta Levelni to'liq yakunlab, 5-sinfdan 11-sinfgacha bo'lgan barcha tarixiy bilimlarni mukammal egallang va maxsus Sertifikatga ega bo'ling!
+            </p>
+          </div>
+
+        </main>
 
       </div> {/* end scrollable content */}
 

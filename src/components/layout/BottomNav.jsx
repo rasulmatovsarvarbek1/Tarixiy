@@ -10,7 +10,7 @@ export default function BottomNav({ activeTab, onTabChange }) {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-[#0C0F18]/95 backdrop-blur-lg border-t sm:border-x border-[#1E2638] pt-2 pb-[max(0.6rem,env(safe-area-inset-bottom))] px-3 z-[100] shadow-[0_-8px_24px_rgba(0,0,0,0.6)]">
+    <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-white/92 backdrop-blur-xl border-t border-[#E2E8F0] pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] px-3 z-[100] shadow-[0_-8px_25px_rgba(0,0,0,0.06)]">
       <div className="w-full flex items-center justify-around">
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -21,27 +21,35 @@ export default function BottomNav({ activeTab, onTabChange }) {
               key={item.id}
               type="button"
               onClick={() => onTabChange(item.id)}
-              className="flex flex-col items-center justify-center min-w-[64px] py-1 select-none active:scale-90 transition-transform duration-150"
+              className="group relative flex flex-col items-center justify-center min-w-[68px] py-1 select-none active:scale-90 transition-all duration-200 cursor-pointer"
             >
               <div
-                className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-300 ${
-                  isActive ? 'bg-[#E8B84B]/15 scale-105' : 'bg-transparent'
+                className={`relative w-12 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
+                  isActive
+                    ? 'bg-[#E8B84B]/20 text-[#B4821A] scale-105 shadow-sm'
+                    : 'bg-transparent text-[#8B98AD] group-hover:text-[#475569] group-hover:bg-[#F1F5F9]/70'
                 }`}
               >
                 <Icon
                   style={{ width: 22, height: 22 }}
-                  className={`transition-colors ${isActive ? 'text-[#E8B84B]' : 'text-[#4A5568]'}`}
-                  fill={isActive ? '#E8B84B' : 'none'}
-                  strokeWidth={isActive ? 2.2 : 1.8}
+                  className={`transition-all duration-300 ${
+                    isActive ? 'text-[#C99218] stroke-[2.3]' : 'text-[#8B98AD] stroke-[1.8]'
+                  }`}
+                  fill={isActive ? 'currentColor' : 'none'}
                 />
               </div>
               <span
-                className={`mt-0.5 text-[10px] font-semibold transition-colors ${
-                  isActive ? 'text-[#E8B84B]' : 'text-[#4A5568]'
+                className={`mt-1 text-[10.5px] tracking-tight transition-all duration-200 ${
+                  isActive
+                    ? 'font-bold text-[#B4821A]'
+                    : 'font-medium text-[#8B98AD] group-hover:text-[#475569]'
                 }`}
               >
                 {item.label}
               </span>
+              {isActive && (
+                <span className="absolute -bottom-0.5 w-1.5 h-1.5 rounded-full bg-[#D4921A]" />
+              )}
             </button>
           );
         })}

@@ -1,0 +1,178 @@
+/* From Uiverse.io by Smit-Prajapati — adapted */
+.uiverse-signin {
+  max-width: 350px;
+  background: #fbf7f2;
+  border-radius: 40px;
+  padding: 25px 35px;
+  border: 5px solid #d4af37;
+  box-shadow: rgba(212, 175, 55, 0.35) 0px 30px 30px -20px;
+  margin: 20px auto;
+  color: #3d3424;
+}
+
+.uiverse-signin .heading {
+  text-align: center;
+  font-weight: 900;
+  font-size: 30px;
+  color: #e8b84b;
+}
+
+.uiverse-signin .form {
+  margin-top: 20px;
+}
+
+.uiverse-signin .form .input {
+  width: 100%;
+  background: #fffbf0;
+  border: none;
+  padding: 15px 20px;
+  border-radius: 20px;
+  margin-top: 15px;
+  box-shadow: rgba(212, 175, 55, 0.25) 0px 10px 10px -5px;
+  border-inline: 2px solid #d4af37;
+  color: #3d3424;
+}
+
+.uiverse-signin .form .input::-moz-placeholder {
+  color: rgb(170, 170, 170);
+}
+
+.uiverse-signin .form .input::placeholder {
+  color: rgb(170, 170, 170);
+}
+
+.uiverse-signin .form .input:focus {
+  outline: none;
+  border-inline: 2px solid #e8b84b;
+}
+
+.uiverse-signin .form .forgot-password {
+  display: block;
+  margin-top: 10px;
+  margin-left: 10px;
+}
+
+.uiverse-signin .form .forgot-password a {
+  font-size: 11px;
+  color: #d4af37;
+  text-decoration: none;
+}
+
+.uiverse-signin .form .login-button {
+  display: block;
+  width: 100%;
+  font-weight: bold;
+  background: #e8b84b;
+  color: #3d3424;
+  padding-block: 15px;
+  margin: 20px auto;
+  border-radius: 20px;
+  box-shadow: rgba(212, 175, 55, 0.45) 0px 20px 10px -15px;
+  border: none;
+  transition: all 0.2s ease-in-out;
+  cursor: pointer;
+}
+
+.uiverse-signin .form .login-button:hover {
+  transform: scale(1.03);
+  box-shadow: rgba(212, 175, 55, 0.45) 0px 23px 10px -20px;
+}
+
+.uiverse-signin .form .login-button:active {
+  transform: scale(0.95);
+  box-shadow: rgba(212, 175, 55, 0.45) 0px 15px 10px -10px;
+}
+
+/* Login button outside of form (step 2 & 3) */
+.uiverse-signin .login-button {
+  display: block;
+  width: 100%;
+  font-weight: bold;
+  background: #e8b84b;
+  color: #3d3424;
+  padding-block: 15px;
+  border-radius: 20px;
+  box-shadow: rgba(212, 175, 55, 0.45) 0px 20px 10px -15px;
+  border: none;
+  transition: all 0.2s ease-in-out;
+  cursor: pointer;
+}
+
+.uiverse-signin .login-button:hover {
+  transform: scale(1.03);
+  box-shadow: rgba(212, 175, 55, 0.45) 0px 23px 10px -20px;
+}
+
+.uiverse-signin .login-button:active {
+  transform: scale(0.95);
+  box-shadow: rgba(212, 175, 55, 0.45) 0px 15px 10px -10px;
+}
+
+.uiverse-signin .social-account-container {
+  margin-top: 25px;
+}
+
+.uiverse-signin .social-account-container .title {
+  display: block;
+  text-align: center;
+  font-size: 10px;
+  color: rgb(170, 170, 170);
+}
+
+.uiverse-signin .social-account-container .social-accounts {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 5px;
+}
+
+.uiverse-signin .social-account-container .social-accounts .social-button {
+  background: linear-gradient(45deg, rgb(0, 0, 0) 0%, rgb(112, 112, 112) 100%);
+  border: 5px solid #fffbf0;
+  padding: 5px;
+  border-radius: 50%;
+  width: 40px;
+  aspect-ratio: 1;
+  display: grid;
+  place-content: center;
+  box-shadow: rgba(212, 175, 55, 0.35) 0px 12px 10px -8px;
+  transition: all 0.2s ease-in-out;
+  cursor: pointer;
+}
+
+.uiverse-signin .social-account-container .social-accounts .social-button .svg {
+  fill: white;
+  margin: auto;
+}
+
+.uiverse-signin .social-account-container .social-accounts .social-button:hover {
+  transform: scale(1.2);
+}
+
+.uiverse-signin .social-account-container .social-accounts .social-button:active {
+  transform: scale(0.9);
+}
+
+.uiverse-signin .agreement {
+  display: block;
+  text-align: center;
+  margin-top: 15px;
+}
+
+.uiverse-signin .agreement a {
+  text-decoration: none;
+  color: #d4af37;
+  font-size: 9px;
+}
+
+.uiverse-signin .signin-error {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.35);
+  border-radius: 12px;
+  color: #b91c1c;
+  font-size: 12px;
+  text-align: center;
+}

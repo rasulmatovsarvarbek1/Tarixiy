@@ -29,7 +29,7 @@ export default function ResourcesPage() {
   ];
 
   return (
-    <div className="w-full max-w-md mx-auto min-h-screen bg-[#0C0F18] text-white px-5 pt-8 pb-28">
+    <div className="w-full max-w-md mx-auto min-h-screen bg-white text-[#1E293B] px-5 pt-8 pb-28">
       {/* 4 ta tugma: faqat nomi va rangi */}
       <div className="space-y-4">
         {resourceButtons.map((btn) => (

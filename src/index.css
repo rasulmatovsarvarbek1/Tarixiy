@@ -11,8 +11,8 @@
   body {
     min-height: 100vh;
     height: auto;
-    background-color: #0D1117;
-    color: #F0EAD6;
+    background-color: #F8FAFC;
+    color: #1E293B;
     overflow-x: hidden;
     /* overflow-y: auto (default) — body scroll qiladi, fixed elements harakatlanmaydi */
   }
@@ -31,11 +31,11 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #0D1117;
+  background: #F1F5F9;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #21262D;
+  background: #CBD5E1;
   border-radius: 4px;
 }
 
@@ -230,7 +230,7 @@
   transition: all 0.3s;
 }
 .inbox-btn svg path {
-  fill: #7A8499;
+  fill: #64748B;
 }
 .inbox-btn svg {
   height: 17px;
@@ -252,11 +252,11 @@
   justify-content: center;
 }
 .inbox-btn:hover {
-  background: rgba(170, 170, 170, 0.08);
+  background: rgba(0, 0, 0, 0.05);
   transform: scale(1.1);
 }
 .inbox-btn:hover svg path {
-  fill: #fff;
+  fill: #1E293B;
 }
 
 /* ═══════════════════════════════════
@@ -272,11 +272,11 @@
   align-items: center;
   justify-content: center;
   transition: all 0.3s;
-  color: #7A8499;
+  color: #64748B;
 }
 .notif-bell-btn:hover {
-  background: rgba(170, 170, 170, 0.08);
-  color: #fff;
+  background: rgba(0, 0, 0, 0.05);
+  color: #1E293B;
   transform: scale(1.1);
 }
 .notif-bell-btn svg {
