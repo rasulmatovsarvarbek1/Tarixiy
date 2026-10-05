@@ -27,9 +27,20 @@ import {
   AlertCircle
 } from 'lucide-react';
 
-export default function ProfilePage({ userData, onUpdateUserData, onLogout }) {
+export default function ProfilePage({
+  userData,
+  onUpdateUserData,
+  onLogout,
+  currentPage: externalCurrentPage,
+  setCurrentPage: setExternalCurrentPage,
+}) {
   // Navigation stack state: 'main' | 'settings_menu' | 'edit_profile' | 'donate' | 'gifts' | 'send_gift' | 'empty_page'
-  const [currentPage, setCurrentPage] = useState('main');
+  const [localCurrentPage, setLocalCurrentPage] = useState('main');
+  const currentPage = externalCurrentPage !== undefined ? externalCurrentPage : localCurrentPage;
+  const setCurrentPage = (val) => {
+    if (setExternalCurrentPage) setExternalCurrentPage(val);
+    setLocalCurrentPage(val);
+  };
   const [editProfileSource, setEditProfileSource] = useState('main'); // 'main' | 'settings_menu'
   const [emptyPageTitle, setEmptyPageTitle] = useState('');
 

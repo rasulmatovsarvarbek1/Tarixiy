@@ -31,6 +31,8 @@ import {
   Link as LinkIcon
 } from 'lucide-react';
 import { dashboardData } from '../data/dashboardData';
+import ShopPage from './ShopPage';
+
 
 const FOUR_BUTTONS = [
   {
@@ -80,8 +82,20 @@ function getInitials(name = '') {
     .join('');
 }
 
-export default function HomePage({ userData }) {
-  const [activeSubPage, setActiveSubPage] = useState(null);
+export default function HomePage({
+  userData,
+  onNavigateTab,
+  activeSubPage: externalSubPage,
+  setActiveSubPage: setExternalSubPage,
+  userCoins = 16,
+  setUserCoins,
+}) {
+  const [localSubPage, setLocalSubPage] = useState(null);
+  const activeSubPage = externalSubPage !== undefined ? externalSubPage : localSubPage;
+  const setActiveSubPage = (val) => {
+    if (setExternalSubPage) setExternalSubPage(val);
+    setLocalSubPage(val);
+  };
   const [isReferralModalOpen, setIsReferralModalOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [promoCopied, setPromoCopied] = useState(false);
@@ -666,31 +680,25 @@ export default function HomePage({ userData }) {
   }
 
   /* ═══════════════════════════════════════════════════════════════
-     SUB-PAGE: MAGAZIN
+     SUB-PAGE: MAGAZIN (GIFTLAR DO'KONI)
   ═══════════════════════════════════════════════════════════════ */
   if (activeSubPage === 'magazin') {
     return (
-      <div className="w-full max-w-md mx-auto min-h-screen bg-white text-[#1E293B] px-4 sm:px-5 pt-10 sm:pt-12 pb-24 sm:pb-28 flex flex-col page-transition">
-        <div className="flex items-center gap-3 mb-6">
-          <button
-            type="button"
-            onClick={() => setActiveSubPage(null)}
-            className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] flex items-center justify-center text-[#1E293B] active:scale-95 transition cursor-pointer shrink-0 shadow-sm"
-          >
-            <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
-          </button>
-          <h1 className="text-lg sm:text-xl font-bold text-[#0F172A]">Magazin</h1>
-        </div>
-        <div className="flex-1 flex flex-col items-center justify-center text-center p-4 sm:p-6">
-          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[#FFFBEB] border border-[#FDE68A] flex items-center justify-center text-[#D97706] mb-4 shadow-sm">
-            <ShoppingBag className="w-7 h-7 sm:w-8 sm:h-8" />
-          </div>
-          <h2 className="text-base sm:text-lg font-bold text-[#0F172A] mb-1">Magazin</h2>
-          <p className="text-[11px] sm:text-xs text-[#64748B] max-w-xs">
-            Magazin bo'limi hozirda tayyorlanmoqda. Tez orada yangi mahsulotlar va buyumlar qo'shiladi.
-          </p>
-        </div>
-      </div>
+      <ShopPage
+        userData={userData}
+        userCoins={userCoins}
+        onUpdateCoins={setUserCoins}
+        onBack={() => setActiveSubPage(null)}
+        onNavigateToLessons={() => {
+          setActiveSubPage(null);
+          onNavigateTab?.('lessons');
+        }}
+        onNavigateToReferral={() => {
+          setActiveSubPage('referral-page');
+          setShowFriendsList(false);
+          window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+        }}
+      />
     );
   }
 

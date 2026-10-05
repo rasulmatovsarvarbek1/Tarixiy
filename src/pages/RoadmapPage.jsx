@@ -217,18 +217,16 @@ export default function RoadmapPage({ onNavigate }) {
         src="/roadmap_bg.jpg"
         alt=""
         aria-hidden="true"
-        className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] h-screen object-cover z-0 pointer-events-none select-none opacity-80"
+        className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] h-screen object-cover z-0 pointer-events-none select-none"
       />
-      {/* Light overlay for clean readability */}
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] h-screen bg-white/40 backdrop-blur-[1px] z-[1] pointer-events-none" />
 
       {/* Scrollable content sits above fixed bg */}
       <div className="relative z-10 w-full">
 
-        {/* ─── YUQORI SARLAVHA: Darslar + Yulduz & Tanga ─── */}
-        <header className="sticky top-0 z-40 bg-white/92 backdrop-blur-md border-b border-[#E2E8F0] py-3 min-[360px]:py-3.5 px-3 min-[360px]:px-4 shadow-sm">
+        {/* ─── YUQORI SARLAVHA: Darslar + Yulduz & Tanga (FIXED) ─── */}
+        <header className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-40 bg-black/40 backdrop-blur-md border-b border-white/10 py-3 min-[360px]:py-3.5 px-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <h1 className="text-[18px] min-[360px]:text-[20px] sm:text-[22px] font-extrabold text-[#0F172A] tracking-tight truncate">
+            <h1 className="text-[18px] min-[360px]:text-[20px] sm:text-[22px] font-extrabold text-white tracking-tight truncate drop-shadow-md">
               Darslar
             </h1>
 
@@ -238,19 +236,19 @@ export default function RoadmapPage({ onNavigate }) {
               <button
                 type="button"
                 onClick={() => onNavigate?.('ranking')}
-                className="flex items-center gap-1.5 bg-[#F8FAFC] hover:bg-[#F1F5F9] border border-[#E2E8F0] rounded-full px-2.5 py-1.5 transition-all active:scale-95 cursor-pointer group shadow-sm"
+                className="flex items-center gap-1.5 bg-white/95 hover:bg-white border border-white/60 rounded-full px-2.5 py-1.5 transition-all active:scale-95 cursor-pointer group shadow-sm"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" className="shrink-0 drop-shadow-[0_0_4px_rgba(255,184,0,0.5)] group-hover:scale-110 transition-transform">
                   <path d="M12 2l2.4 7.2H22l-6 4.8 2.4 7.2L12 16.4 5.6 21.2 8 14 2 9.2h7.6z" fill="#FFB800" />
                 </svg>
-                <span className="text-[13px] font-bold text-[#1E293B]">116</span>
+                <span className="text-[13px] font-black text-[#1E293B]">116</span>
               </button>
 
               {/* Sariq Tanga → Magazin */}
               <button
                 type="button"
                 onClick={() => onNavigate?.('magazin')}
-                className="flex items-center gap-1.5 bg-[#F8FAFC] hover:bg-[#F1F5F9] border border-[#E2E8F0] rounded-full px-2.5 py-1.5 transition-all active:scale-95 cursor-pointer group shadow-sm"
+                className="flex items-center gap-1.5 bg-white/95 hover:bg-white border border-white/60 rounded-full px-2.5 py-1.5 transition-all active:scale-95 cursor-pointer group shadow-sm"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" className="shrink-0 group-hover:scale-110 transition-transform">
                   <circle cx="12" cy="12" r="10" fill="#FFB800" />
@@ -258,11 +256,14 @@ export default function RoadmapPage({ onNavigate }) {
                   <circle cx="12" cy="12" r="6" fill="#FFD54F" />
                   <text x="12" y="16" textAnchor="middle" fontSize="10" fontWeight="bold" fill="#B8860B">$</text>
                 </svg>
-                <span className="text-[13px] font-bold text-[#1E293B]">16</span>
+                <span className="text-[13px] font-black text-[#1E293B]">16</span>
               </button>
             </div>
           </div>
         </header>
+
+        {/* Header uchun bo'sh joy (spacer) */}
+        <div className="h-[58px] w-full flex-shrink-0" />
 
         {/* Toast Alert */}
         {toast && (

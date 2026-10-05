@@ -10,6 +10,9 @@ import { dashboardData } from './data/dashboardData';
 export default function App() {
   const [appState, setAppState] = useState('register');
   const [activeTab, setActiveTab] = useState('home');
+  const [homeSubPage, setHomeSubPage] = useState(null);
+  const [profileSubPage, setProfileSubPage] = useState('main');
+  const [userCoins, setUserCoins] = useState(16);
   const [userData, setUserData] = useState({
     fullName: dashboardData.userName,
     phone: '+998 90 123-45-67',
@@ -19,13 +22,13 @@ export default function App() {
 
   const scrollContainerRef = useRef(null);
 
-  // Tab almashganda sahifani eng tepaga qaytarish
+  // Tab yoki sub-page almashganda scrollni eng tepaga qaytarish (bir sahifaning scrolli boshqasiga ta'sir qilmasligi uchun)
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTop = 0;
     }
-  }, [activeTab]);
+  }, [activeTab, homeSubPage, profileSubPage]);
 
   const handleRegistrationComplete = (data) => {
     setUserData(data);
@@ -35,7 +38,20 @@ export default function App() {
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
+    if (tab === 'home') {
+      // Agar pastdagi home tugmasi bosilsa, sub-page yopiladi
+      setHomeSubPage(null);
+    } else if (tab === 'profile') {
+      // Agar pastdagi profil tugmasi bosilsa, asosiy profil sahifasiga qaytadi
+      setProfileSubPage('main');
+    }
   };
+
+  // Faqat asosiy 4 ta sahifada (Bosh sahifa, Darslar, Resurslar, Profil) pastdagi navbar ko'rinadi.
+  // Har qanday sub-page (magazin, quiz, medals, ranking, profil sozlamalari, donat va h.k.) ochilganda navbar YASHIRILADI!
+  const isHomeSubPage = activeTab === 'home' && homeSubPage !== null;
+  const isProfileSubPage = activeTab === 'profile' && profileSubPage !== 'main';
+  const shouldHideBottomNav = isHomeSubPage || isProfileSubPage;
 
   return (
     <div className="min-h-screen bg-[#F1F5F9] text-[#1E293B] flex justify-center selection:bg-[#E8B84B] selection:text-[#0D1117]">
@@ -52,19 +68,35 @@ export default function App() {
         {/* APP — barcha sahifalar mounted bo'lib turadi, faqat ko'rinishi o'zgaradi */}
         {appState === 'app' && (
           <>
-            <main ref={scrollContainerRef} className="flex-1 pb-20 bg-white relative overflow-y-auto">
+            <main ref={scrollContainerRef} className={`flex-1 ${shouldHideBottomNav ? 'pb-0' : 'pb-20'} bg-white relative overflow-y-auto`}>
 
               {/* HOME */}
               <div style={{ display: activeTab === 'home' ? 'block' : 'none' }}>
                 <HomePage
                   userData={userData}
                   onNavigateTab={handleTabChange}
+                  activeSubPage={homeSubPage}
+                  setActiveSubPage={setHomeSubPage}
+                  userCoins={userCoins}
+                  setUserCoins={setUserCoins}
                 />
               </div>
 
               {/* LESSONS */}
               <div style={{ display: activeTab === 'lessons' ? 'block' : 'none' }}>
-                <RoadmapPage />
+                <RoadmapPage
+                  onNavigate={(dest) => {
+                    if (dest === 'magazin') {
+                      setActiveTab('home');
+                      setHomeSubPage('magazin');
+                      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+                    } else if (dest === 'ranking') {
+                      setActiveTab('home');
+                      setHomeSubPage('/ranking');
+                      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+                    }
+                  }}
+                />
               </div>
 
               {/* RESOURCES / MORE */}
@@ -77,9 +109,13 @@ export default function App() {
                 <ProfilePage
                   userData={userData}
                   onUpdateUserData={setUserData}
+                  currentPage={profileSubPage}
+                  setCurrentPage={setProfileSubPage}
                   onLogout={() => {
                     setAppState('register');
                     setActiveTab('home');
+                    setHomeSubPage(null);
+                    setProfileSubPage('main');
                     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
                   }}
                 />
@@ -87,7 +123,9 @@ export default function App() {
 
             </main>
 
-            <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
+            {!shouldHideBottomNav && (
+              <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
+            )}
           </>
         )}
       </div>

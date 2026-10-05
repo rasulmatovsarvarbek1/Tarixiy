@@ -1,0 +1,118 @@
+/* ================================================================
+   GIFT ANIMATSIYALARI — faqat transform, opacity, filter
+   Barcha animation GPU-da ishlaydi (telefon sekinlashmasin)
+   ================================================================ */
+
+/* ── BOTTOM SHEET: pastdan silliq ko'tariladi ── */
+@keyframes gift-sheet-up {
+  0%   { transform: translateY(100%); opacity: 0; }
+  100% { transform: translateY(0);    opacity: 1; }
+}
+
+/* ── 1. TANGA: o'z o'qi atrofida aylanadi ── */
+@keyframes gift-spin {
+  0%   { transform: rotateY(0deg); }
+  100% { transform: rotateY(360deg); }
+}
+.anim-spin {
+  animation: gift-spin 3s linear infinite;
+  transform-style: preserve-3d;
+}
+
+/* ── 2. TOJ / TAXT / OLMOS / CHIROQ: oltin nur yonib-o'chadi + scale ── */
+@keyframes gift-glow {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px rgba(255, 184, 0, 0.5));
+  }
+  50% {
+    transform: scale(1.08);
+    filter: drop-shadow(0 0 14px rgba(255, 184, 0, 0.95));
+  }
+}
+.anim-glow {
+  animation: gift-glow 2s ease-in-out infinite;
+}
+
+/* ── 3. FENIKS / PEGAS / SAKURA: yuqoriga-pastga suzadi ── */
+@keyframes gift-float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-8px); }
+}
+.anim-float {
+  animation: gift-float 3s ease-in-out infinite;
+}
+
+/* ── 4. AYIQCHA / SOVG'A QUTISI / GUL DASTASI: o'ngga-chapga tebranadi ── */
+@keyframes gift-wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25%       { transform: rotate(-6deg); }
+  75%       { transform: rotate(6deg); }
+}
+.anim-wiggle {
+  animation: gift-wiggle 1.5s ease-in-out infinite;
+}
+
+/* ── 5. QUM SOATI: 3 soniya turadi, keyin 180deg ag'dariladi ── */
+@keyframes gift-flip {
+  0%, 60%  { transform: rotate(0deg); }
+  70%, 100% { transform: rotate(180deg); }
+}
+.anim-flip {
+  animation: gift-flip 4s ease-in-out infinite;
+}
+
+/* ── 6. RAKETA: yuqoriga ko'tariladi va sekin qaytadi ── */
+@keyframes gift-rocket {
+  0%, 100% { transform: translateY(0px) rotate(-15deg); }
+  50%       { transform: translateY(-12px) rotate(-15deg); }
+}
+.anim-rocket {
+  animation: gift-rocket 2.5s ease-in-out infinite;
+}
+
+/* ── 7. DUBULG'A / AJDARHO / SFINKS / O'RAM: sekin nafas oladi ── */
+@keyframes gift-breathe {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.05); }
+}
+.anim-breathe {
+  animation: gift-breathe 3s ease-in-out infinite;
+}
+
+/* ── BOSGANDA: tez sakraydi ── */
+@keyframes gift-tap {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+.anim-tap-active {
+  animation: gift-tap 0.3s ease-out forwards !important;
+}
+
+/* ── SOTIB OLINGANDA: oltin yaltiroq effekt (bir martalik) ── */
+@keyframes gift-purchased {
+  0%   { filter: drop-shadow(0 0 0px rgba(255, 184, 0, 0)); }
+  40%  { filter: drop-shadow(0 0 20px rgba(255, 184, 0, 1)); }
+  100% { filter: drop-shadow(0 0 4px rgba(255, 184, 0, 0)); }
+}
+.anim-purchased {
+  animation: gift-purchased 1s ease-out forwards;
+}
+
+/* ── prefers-reduced-motion: barcha animatsiyalarni o'chir ── */
+@media (prefers-reduced-motion: reduce) {
+  .anim-spin,
+  .anim-glow,
+  .anim-float,
+  .anim-wiggle,
+  .anim-flip,
+  .anim-rocket,
+  .anim-breathe,
+  .anim-tap-active,
+  .anim-purchased {
+    animation: none !important;
+    transform: none !important;
+    filter: none !important;
+  }
+}
