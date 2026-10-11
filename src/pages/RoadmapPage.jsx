@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, Sparkles, AlertCircle, CheckCircle2, Shield, Compass, Landmark, Trophy, DoorClosed, KeyRound, Sparkle } from 'lucide-react';
+import { Lock, Sparkles, AlertCircle, CheckCircle2, Shield, Compass, Landmark, Trophy, DoorClosed, KeyRound, Sparkle, ChevronsRight } from 'lucide-react';
 
 // 5-sinfdan 11-sinfgacha jami 7 ta sinf ma'lumotlari (har birida 10 tadan dars = jami 70 Level)
 const GRADES_CONFIG = [
@@ -196,6 +196,9 @@ function ClassGatePortal({ gradeNumber, gradeTitle, isUnlocked = false }) {
 export default function RoadmapPage({ onNavigate }) {
   const [toast, setToast] = useState(null);
   const [shakingId, setShakingId] = useState(null);
+  const [selectedLevel, setSelectedLevel] = useState(null);
+  const [showIntroPage, setShowIntroPage] = useState(true);
+  const [dragStartX, setDragStartX] = useState(null);
 
   const handleCardClick = (level) => {
     if (level.isLocked) {
@@ -203,11 +206,105 @@ export default function RoadmapPage({ onNavigate }) {
       setToast(`🔒 "${level.title}: ${level.topic}" qulflangan. Avval 1 Level darsini yakunlang!`);
       setTimeout(() => setShakingId(null), 500);
       setTimeout(() => setToast(null), 3000);
-    } else {
-      setToast(`✨ "${level.title}: ${level.topic}" ochildi! Darsni boshlashingiz mumkin.`);
-      setTimeout(() => setToast(null), 3000);
+      return;
     }
+
+    setSelectedLevel(level);
+    setShowIntroPage(true);
   };
+
+  const openNextPage = () => {
+    setShowIntroPage(false);
+  };
+
+  const handlePointerStart = (clientX) => {
+    setDragStartX(clientX);
+  };
+
+  const handlePointerEnd = (clientX) => {
+    if (dragStartX === null) return;
+    const diff = clientX - dragStartX;
+    if (diff < -70) {
+      openNextPage();
+    }
+    setDragStartX(null);
+  };
+
+  const handleTouchStart = (event) => {
+    handlePointerStart(event.touches[0].clientX);
+  };
+
+  const handleTouchEnd = (event) => {
+    handlePointerEnd(event.changedTouches[0].clientX);
+  };
+
+  const handleMouseDown = (event) => {
+    handlePointerStart(event.clientX);
+  };
+
+  const handleMouseUp = (event) => {
+    handlePointerEnd(event.clientX);
+  };
+
+  if (selectedLevel) {
+    if (showIntroPage) {
+      return (
+        <div
+          className="fixed inset-0 w-full h-screen bg-[#F8F8F8] overflow-hidden px-6 pt-10 pb-8"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          onMouseDown={handleMouseDown}
+          onMouseUp={handleMouseUp}
+        >
+          <div className="relative w-full h-full flex flex-col items-center justify-center">
+            <div className="flex flex-col items-center justify-center -mt-8">
+              <div className="flex items-end justify-center gap-0 text-[42px] sm:text-[52px] font-black tracking-[-0.07em] leading-none select-none">
+                <span className="text-[#111827]">Jahon</span>
+                <span className="text-[#F97316]">Tarixi</span>
+              </div>
+              <div className="mt-2 text-[24px] sm:text-[28px] font-bold tracking-[-0.04em] text-[#111827] leading-none">
+                Kirish
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={openNextPage}
+              className="absolute right-5 bottom-20 flex items-center justify-center w-12 h-12 rounded-full bg-white/90 border border-[#E5E7EB] shadow-[0_8px_30px_rgba(17,24,39,0.12)] text-[#111827] active:scale-95 transition"
+              aria-label="Keyingi sahifaga o'tish"
+            >
+              <ChevronsRight className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div
+        className="fixed inset-0 w-full h-screen bg-white overflow-hidden px-4 pt-5 pb-6 book-page"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
+      >
+        <div className="relative w-full h-full flex flex-col bg-white">
+          <div className="flex items-center justify-between mb-8">
+            <button
+              type="button"
+              onClick={() => setSelectedLevel(null)}
+              className="text-sm font-semibold text-[#111827]"
+            >
+              Orqaga
+            </button>
+            <span className="text-xs font-medium text-[#64748B]">{selectedLevel.title}</span>
+          </div>
+
+          <div className="flex-1" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="text-[#1E293B] relative select-none pb-28 w-full overflow-x-hidden bg-white">
@@ -347,15 +444,11 @@ export default function RoadmapPage({ onNavigate }) {
                         )}
                       </div>
 
-                      {/* Pastki qism: Level raqami va Tarixiy mavzusi */}
+                      {/* Pastki qism: Level raqami */}
                       <div>
                         <h3 className="text-[17px] min-[360px]:text-[19px] font-extrabold text-white leading-tight">
                           {level.title}
                         </h3>
-                        <p className={`text-[10px] min-[360px]:text-[11px] font-medium mt-0.5 truncate ${isOpen ? 'text-white/85' : 'text-white/40'
-                          }`}>
-                          {level.topic}
-                        </p>
                       </div>
 
                       {/* Inner highlight effekti (Yuqori yaltirash chizig'i) */}

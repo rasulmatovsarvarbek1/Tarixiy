@@ -12,6 +12,21 @@ import {
 import { giftsData } from '../data/giftsData';
 import '../styles/giftAnimations.css';
 
+function GoldCoin({ size = 18, className = '' }) {
+  return (
+    <span
+      className={`inline-flex items-center justify-center rounded-full border-[2px] border-[#E9B63B] ${className}`}
+      style={{
+        width: size,
+        height: size,
+        background: 'radial-gradient(circle at 35% 30%, #fff9d9 0%, #f8df72 20%, #f2bb16 46%, #d8920d 72%, #a75c09 100%)',
+        boxShadow: 'inset 0 2px 3px rgba(255,255,255,0.9), inset 0 -6px 8px rgba(127,67,0,0.16), 0 2px 8px rgba(217,119,6,0.12)'
+      }}
+      aria-label="coin"
+    />
+  );
+}
+
 export default function ShopPage({
   userData,
   userCoins = 16,
@@ -88,9 +103,7 @@ export default function ShopPage({
 
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FFFBEB] border border-[#FDE68A] shadow-sm">
-            <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-amber-500 to-yellow-300 flex items-center justify-center text-amber-950 font-black text-[11px] shadow-sm border border-yellow-200">
-              🪙
-            </div>
+            <GoldCoin size={20} />
             <span className="font-extrabold text-[#92400E] text-sm tracking-tight">
               {userCoins}
             </span>
@@ -144,7 +157,7 @@ export default function ShopPage({
               {/* Narx */}
               <div className="pt-2.5 flex items-center justify-center">
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FFFBEB] border border-[#FDE68A]">
-                  <span className="text-[13px]">🪙</span>
+                  <GoldCoin size={16} />
                   <span className="text-xs font-black text-[#92400E]">
                     {gift.price.toLocaleString()}
                   </span>
@@ -188,9 +201,8 @@ export default function ShopPage({
               <img
                 src={selectedGift.image}
                 alt="Gift"
-                className={`w-full h-full object-contain drop-shadow-xl ${
-                  purchasedId === selectedGift.id ? 'anim-purchased' : (selectedGift.animClass || '')
-                }`}
+                className={`w-full h-full object-contain drop-shadow-xl ${purchasedId === selectedGift.id ? 'anim-purchased' : (selectedGift.animClass || '')
+                  }`}
                 style={{ animationDelay: selectedGift.animDelay || '0s' }}
               />
             </div>
@@ -244,7 +256,8 @@ export default function ShopPage({
                 >
                   <span>Hadya sotib olish:</span>
                   <span className="flex items-center gap-1 bg-white/20 px-2.5 py-0.5 rounded-full text-sm font-black">
-                    🪙 {selectedGift.price.toLocaleString()}
+                    <GoldCoin size={16} className="shadow-[inset_0_2px_3px_rgba(255,255,255,0.8)]" />
+                    {selectedGift.price.toLocaleString()}
                   </span>
                 </button>
               )}

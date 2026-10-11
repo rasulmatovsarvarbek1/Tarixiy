@@ -45,9 +45,21 @@
 
 /* Shake animation for locked items */
 @keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  20%, 60% { transform: translateX(-6px); }
-  40%, 80% { transform: translateX(6px); }
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  20%,
+  60% {
+    transform: translateX(-6px);
+  }
+
+  40%,
+  80% {
+    transform: translateX(6px);
+  }
 }
 
 .animate-shake {
@@ -59,19 +71,47 @@
   0% {
     opacity: 0;
   }
+
   100% {
     opacity: 1;
   }
 }
 
 @keyframes fadeIn {
-  0% { opacity: 0; }
-  100% { opacity: 1; }
+  0% {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes bookPageTurn {
+  0% {
+    opacity: 0;
+    transform: translateX(22px) scale(0.99);
+    filter: blur(0.2px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+    filter: blur(0);
+  }
 }
 
 .page-transition {
-  animation: pageEnter 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
-  /* will-change olib tashlandi: position:fixed elementlarni buzmaydi */
+  animation: pageEnter 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: transform, opacity;
+}
+
+.book-page {
+  animation: bookPageTurn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform-origin: left center;
+  will-change: transform, opacity, filter;
 }
 
 .fade-in {
@@ -229,13 +269,16 @@
   cursor: pointer;
   transition: all 0.3s;
 }
+
 .inbox-btn svg path {
   fill: #64748B;
 }
+
 .inbox-btn svg {
   height: 17px;
   transition: all 0.3s;
 }
+
 .inbox-btn .msg-count {
   position: absolute;
   top: 2px;
@@ -251,10 +294,12 @@
   align-items: center;
   justify-content: center;
 }
+
 .inbox-btn:hover {
   background: rgba(0, 0, 0, 0.05);
   transform: scale(1.1);
 }
+
 .inbox-btn:hover svg path {
   fill: #1E293B;
 }
@@ -274,11 +319,13 @@
   transition: all 0.3s;
   color: #64748B;
 }
+
 .notif-bell-btn:hover {
   background: rgba(0, 0, 0, 0.05);
   color: #1E293B;
   transform: scale(1.1);
 }
+
 .notif-bell-btn svg {
   width: 22px;
   height: 22px;
@@ -294,12 +341,15 @@
     width: 36px;
     height: 36px;
   }
+
   .inbox-btn svg {
     height: 14px;
   }
+
   .notif-bell-btn {
     padding: 7px;
   }
+
   .notif-bell-btn svg {
     width: 19px;
     height: 19px;
@@ -312,12 +362,15 @@
     width: 32px;
     height: 32px;
   }
+
   .inbox-btn svg {
     height: 13px;
   }
+
   .notif-bell-btn {
     padding: 6px;
   }
+
   .notif-bell-btn svg {
     width: 17px;
     height: 17px;

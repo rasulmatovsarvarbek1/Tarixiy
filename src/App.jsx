@@ -24,7 +24,6 @@ export default function App() {
 
   // Tab yoki sub-page almashganda scrollni eng tepaga qaytarish (bir sahifaning scrolli boshqasiga ta'sir qilmasligi uchun)
   useEffect(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTop = 0;
     }
@@ -71,7 +70,7 @@ export default function App() {
             <main ref={scrollContainerRef} className={`flex-1 ${shouldHideBottomNav ? 'pb-0' : 'pb-20'} bg-white relative overflow-y-auto`}>
 
               {/* HOME */}
-              <div style={{ display: activeTab === 'home' ? 'block' : 'none' }}>
+              <div key={`home-${activeTab}`} style={{ display: activeTab === 'home' ? 'block' : 'none' }} className="page-transition book-page">
                 <HomePage
                   userData={userData}
                   onNavigateTab={handleTabChange}
@@ -79,11 +78,15 @@ export default function App() {
                   setActiveSubPage={setHomeSubPage}
                   userCoins={userCoins}
                   setUserCoins={setUserCoins}
+                  onNavigatePremium={() => {
+                    setActiveTab('profile');
+                    setProfileSubPage('premium');
+                  }}
                 />
               </div>
 
               {/* LESSONS */}
-              <div style={{ display: activeTab === 'lessons' ? 'block' : 'none' }}>
+              <div key={`lessons-${activeTab}`} style={{ display: activeTab === 'lessons' ? 'block' : 'none' }} className="page-transition book-page">
                 <RoadmapPage
                   onNavigate={(dest) => {
                     if (dest === 'magazin') {
@@ -100,12 +103,12 @@ export default function App() {
               </div>
 
               {/* RESOURCES / MORE */}
-              <div style={{ display: (activeTab === 'resources' || activeTab === 'more') ? 'block' : 'none' }}>
+              <div key={`resources-${activeTab}`} style={{ display: (activeTab === 'resources' || activeTab === 'more') ? 'block' : 'none' }} className="page-transition book-page">
                 <ResourcesPage />
               </div>
 
               {/* PROFILE */}
-              <div style={{ display: activeTab === 'profile' ? 'block' : 'none' }}>
+              <div key={`profile-${activeTab}`} style={{ display: activeTab === 'profile' ? 'block' : 'none' }} className="page-transition book-page">
                 <ProfilePage
                   userData={userData}
                   onUpdateUserData={setUserData}

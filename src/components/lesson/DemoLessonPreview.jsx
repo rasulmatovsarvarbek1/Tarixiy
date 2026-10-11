@@ -52,13 +52,13 @@ export default function DemoLessonPreview({ onBackToRegister }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#000000] text-white flex flex-col items-center justify-between pb-28 pt-4 px-4 sm:px-6 relative">
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-800 flex flex-col items-center justify-between pb-28 pt-4 px-4 sm:px-6 relative">
       
       {/* Kichik orqaga qaytish tugmasi (navigatsiya uchun) */}
       {onBackToRegister && (
         <button
           onClick={onBackToRegister}
-          className="self-start text-xs text-gray-500 hover:text-gray-300 flex items-center space-x-1 mb-2 px-2 py-1 rounded transition"
+          className="self-start text-xs text-slate-500 hover:text-slate-700 flex items-center space-x-1 mb-2 px-2 py-1 rounded transition"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>Ro'yxatdan o'tishga qaytish</span>
@@ -68,61 +68,53 @@ export default function DemoLessonPreview({ onBackToRegister }) {
       <div className="w-full max-w-md mx-auto flex flex-col items-center">
         
         {/* 1. Muqova Rasmi (1-rasmdagi kitob muqovasi uslubida) */}
-        <div className="w-64 h-64 sm:w-72 sm:h-72 rounded-2xl overflow-hidden shadow-2xl mb-5 relative border border-neutral-800 group">
+        <div className="w-64 h-64 sm:w-72 sm:h-72 rounded-2xl overflow-hidden shadow-2xl mb-5 relative border border-slate-200 bg-white group">
           <img 
-            src="/amir_temur_cover.jpg" 
-            alt="Amir Temur muqovasi" 
+            src="/white.png" 
+            alt="Oq muqova" 
             className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
           />
-          {/* Rasm ustidagi sarlavha effekti (1-rasmdagi 'ANDISHA VA G'URUR' kabi) */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30 flex flex-col items-center justify-center p-4 text-center">
-            <span className="font-serif text-2xl sm:text-3xl font-extrabold tracking-wider uppercase drop-shadow-md text-[#F7F5F0]">
-              Amir Temur
-            </span>
-            <span className="text-xs tracking-widest text-[#E5D2A6] uppercase mt-1 drop-shadow">
-              Buyuk Sohibqiron
-            </span>
-          </div>
+          <div className="absolute inset-0 bg-white/20 backdrop-blur-[1px]" />
         </div>
 
         {/* 2. Sarlavha va Muallif */}
-        <h1 className="text-2xl font-bold tracking-tight text-white text-center">
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 text-center">
           Amir Temur va Temuriylar
         </h1>
-        <p className="text-sm text-neutral-400 text-center mt-1 font-medium">
+        <p className="text-sm text-slate-500 text-center mt-1 font-medium">
           O'zbekiston tarixi • 9-sinf
         </p>
 
         {/* 3. Ko'rsatkichlar qatori (1-rasmdagi: Reyting | Davomiyligi | Ovoz | Sinf) */}
-        <div className="w-full grid grid-cols-4 py-4 my-5 border-y border-neutral-800/80 text-center">
-          <div className="border-r border-neutral-800">
-            <span className="text-[11px] text-neutral-400 block font-normal">Reyting</span>
-            <div className="flex items-center justify-center space-x-1 mt-1 font-bold text-sm text-white">
+        <div className="w-full grid grid-cols-4 py-4 my-5 border-y border-slate-200 text-center">
+          <div className="border-r border-slate-200">
+            <span className="text-[11px] text-slate-500 block font-normal">Reyting</span>
+            <div className="flex items-center justify-center space-x-1 mt-1 font-bold text-sm text-slate-800">
               <Star className="w-3.5 h-3.5 fill-[#FFB800] text-[#FFB800]" />
               <span>4.9</span>
             </div>
           </div>
 
-          <div className="border-r border-neutral-800">
-            <span className="text-[11px] text-neutral-400 block font-normal">Davomiyligi</span>
-            <div className="flex items-center justify-center space-x-1 mt-1 font-bold text-sm text-white">
-              <Clock className="w-3.5 h-3.5 text-neutral-300" />
+          <div className="border-r border-slate-200">
+            <span className="text-[11px] text-slate-500 block font-normal">Davomiyligi</span>
+            <div className="flex items-center justify-center space-x-1 mt-1 font-bold text-sm text-slate-800">
+              <Clock className="w-3.5 h-3.5 text-slate-500" />
               <span>15:37</span>
             </div>
           </div>
 
-          <div className="border-r border-neutral-800">
-            <span className="text-[11px] text-neutral-400 block font-normal">Ovoz</span>
-            <div className="flex items-center justify-center space-x-1 mt-1 font-bold text-xs text-white truncate px-1">
-              <Mic className="w-3 h-3 text-neutral-300 shrink-0" />
+          <div className="border-r border-slate-200">
+            <span className="text-[11px] text-slate-500 block font-normal">Ovoz</span>
+            <div className="flex items-center justify-center space-x-1 mt-1 font-bold text-xs text-slate-800 truncate px-1">
+              <Mic className="w-3 h-3 text-slate-500 shrink-0" />
               <span className="truncate">Otabek R.</span>
             </div>
           </div>
 
           <div>
-            <span className="text-[11px] text-neutral-400 block font-normal">Daraja</span>
-            <div className="flex items-center justify-center space-x-1 mt-1 font-bold text-xs text-white">
-              <GraduationCap className="w-3.5 h-3.5 text-neutral-300" />
+            <span className="text-[11px] text-slate-500 block font-normal">Daraja</span>
+            <div className="flex items-center justify-center space-x-1 mt-1 font-bold text-xs text-slate-800">
+              <GraduationCap className="w-3.5 h-3.5 text-slate-500" />
               <span>9-Sinf</span>
             </div>
           </div>

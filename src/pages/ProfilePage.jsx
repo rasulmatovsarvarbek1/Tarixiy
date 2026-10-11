@@ -50,7 +50,6 @@ export default function ProfilePage({
       setEditProfileSource(source);
     }
     setCurrentPage(page);
-    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   };
 
   // Toast / Alert notification
@@ -163,11 +162,10 @@ export default function ProfilePage({
                   setIsLangModalOpen(false);
                   showToast(`Til o'zgartirildi: ${l.name}`);
                 }}
-                className={`w-full p-3 sm:p-3.5 rounded-xl sm:rounded-2xl border flex items-center justify-between transition cursor-pointer ${
-                  currentLang === l.name
+                className={`w-full p-3 sm:p-3.5 rounded-xl sm:rounded-2xl border flex items-center justify-between transition cursor-pointer ${currentLang === l.name
                     ? 'bg-[#FEF3C7] border-[#E8B84B] text-[#B4821A]'
                     : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#1E293B] hover:bg-[#F1F5F9]'
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-3">
                   <span className="text-lg sm:text-xl">{l.flag}</span>
@@ -191,7 +189,154 @@ export default function ProfilePage({
   };
 
   /* ═══════════════════════════════════════════════════════════════
-     2. BO'SH SAHIFA KOMPONENTI (Medallar, Premium, Display va h.k.)
+     2. PREMIUM OBUNA SAHIFASI (Tarifni tanlang)
+  ═══════════════════════════════════════════════════════════════ */
+  const [selectedPlan, setSelectedPlan] = useState('year12');
+  const premiumPlans = [
+    {
+      id: 'month1',
+      period: '1 oy',
+      badge: null,
+      features: ['Juda oddiy – har oy qayta to\'lov;', 'Platformani sinab ko\'rish uchun qulay;'],
+      oldPrice: '149 000',
+      price: '100 000',
+    },
+    {
+      id: 'month3',
+      period: '3 oy',
+      badge: '17% Tejang',
+      badgeColor: '#10B981',
+      features: ['Bir marta to\'lab, 3 oy tinch o\'qing;', 'Bitta unitni tugatish uchun yetarli vaqt;', 'Oylik tarifga qaraganda 17% tejang;'],
+      oldPrice: '310 000',
+      price: '249 000',
+    },
+    {
+      id: 'month6',
+      period: '6 oy',
+      badge: '25% Tejang',
+      badgeColor: '#10B981',
+      features: ['Yarim yillik muntazam o\'qish uchun;', 'Bir necha sinf mavzularini to\'liq o\'zlashtiring;', 'Oylik tarifga qaraganda 25% tejang;'],
+      oldPrice: '550 000',
+      price: '449 000',
+    },
+    {
+      id: 'year12',
+      period: '12 oy',
+      badge: '33% Tejang',
+      badgeColor: '#10B981',
+      isBest: true,
+      features: ['Bir marta to\'lab, oyma-oy to\'lovni unuting;', '84 unit va 252 darsdan yil davomida foydalaning;', 'Oylik tarifga qaraganda 33% tejang;'],
+      oldPrice: '1 159 000',
+      price: '799 000',
+    },
+  ];
+
+  if (currentPage === 'premium') {
+    const plan = premiumPlans.find(p => p.id === selectedPlan) || premiumPlans[3];
+    return (
+      <div className="w-full max-w-md mx-auto min-h-screen bg-white text-[#1E293B] flex flex-col page-transition">
+        {renderToast()}
+        {renderLangModal()}
+
+        {/* Header */}
+        <div className="px-4 sm:px-5 pt-10 sm:pt-12 pb-3">
+          <div className="flex items-center gap-3 mb-4">
+            <button
+              type="button"
+              onClick={() => navigateTo('main')}
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] flex items-center justify-center text-[#1E293B] active:scale-95 transition cursor-pointer shrink-0 shadow-sm"
+            >
+              <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+            </button>
+            <h1 className="text-lg sm:text-xl font-bold text-[#0F172A]">Tarifni tanlang</h1>
+          </div>
+          <p className="text-[11px] sm:text-xs text-[#64748B] text-center leading-relaxed">
+            O'zingizga qulay muddatni tanlang va barcha<br />darslardan to'liq cheklovlarsiz foydalaning
+          </p>
+        </div>
+
+        {/* Plans list */}
+        <div className="flex-1 px-4 sm:px-5 pb-4 space-y-3 overflow-y-auto">
+          {premiumPlans.map((p) => (
+            <div key={p.id} className="relative">
+              {/* Eng yaxshi taklif badge */}
+              {p.isBest && (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
+                  <span className="inline-flex items-center gap-1 bg-[#E8B84B] text-[#0C0F18] text-[10px] sm:text-[11px] font-bold px-3 py-1 rounded-full shadow">
+                    🔥 Eng yaxshi taklif
+                  </span>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => setSelectedPlan(p.id)}
+                className={`w-full text-left rounded-2xl border-2 p-4 sm:p-5 transition cursor-pointer ${selectedPlan === p.id
+                    ? 'border-[#E8B84B] bg-[#FFFBEB] shadow-md'
+                    : 'border-[#E2E8F0] bg-[#F8FAFC] hover:border-[#CBD5E1]'
+                  } ${p.isBest ? 'mt-2' : ''}`}
+              >
+                {/* Plan header row */}
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base sm:text-lg font-black text-[#0F172A]">{p.period}</span>
+                    {p.badge && (
+                      <span
+                        className="text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full text-white"
+                        style={{ background: p.badgeColor || '#10B981' }}
+                      >
+                        {p.badge}
+                      </span>
+                    )}
+                  </div>
+                  {/* Radio indicator */}
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition ${selectedPlan === p.id
+                      ? 'border-[#E8B84B] bg-[#E8B84B]'
+                      : 'border-[#CBD5E1] bg-white'
+                    }`}>
+                    {selectedPlan === p.id && (
+                      <div className="w-2 h-2 rounded-full bg-white" />
+                    )}
+                  </div>
+                </div>
+
+                {/* Features */}
+                <ul className="space-y-1 mb-3">
+                  {p.features.map((f, i) => (
+                    <li key={i} className="flex items-start gap-1.5">
+                      <span className="text-[#E8B84B] text-[10px] mt-0.5">●</span>
+                      <span className="text-[11px] sm:text-xs text-[#475569] leading-relaxed">{f}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                {/* Price row */}
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] sm:text-xs text-[#94A3B8] line-through">{p.oldPrice} UZS</span>
+                  <span className="bg-[#0F172A] text-white text-sm sm:text-base font-black px-4 py-1.5 rounded-xl">
+                    {p.price} UZS
+                  </span>
+                </div>
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {/* Bottom CTA */}
+        <div className="px-4 sm:px-5 pb-8 pt-3 bg-white border-t border-[#F1F5F9]">
+          <button
+            type="button"
+            onClick={() => showToast("Hozirda ta'mirlash ishlari olib borilmoqda")}
+            className="w-full py-4 rounded-2xl bg-[#E8B84B] hover:bg-[#D4A437] text-[#0C0F18] font-bold text-sm sm:text-base shadow-lg shadow-[#E8B84B]/30 active:scale-[0.98] transition cursor-pointer flex items-center justify-center gap-2"
+          >
+            Davom etish →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+     3. BO'SH SAHIFA KOMPONENTI (Medallar, Display va h.k.)
   ═══════════════════════════════════════════════════════════════ */
   if (currentPage === 'empty_page') {
     return (
@@ -229,7 +374,7 @@ export default function ProfilePage({
       <div className="w-full max-w-md mx-auto min-h-screen bg-white text-[#1E293B] px-4 sm:px-5 pt-10 sm:pt-12 pb-24 sm:pb-28 flex flex-col page-transition">
         {renderToast()}
         {renderLangModal()}
-        
+
         {/* Tepa navigatsiya */}
         <div className="flex items-center justify-between mb-5 sm:mb-6">
           <div className="flex items-center gap-3">
@@ -291,11 +436,10 @@ export default function ProfilePage({
                     key={gender}
                     type="button"
                     onClick={() => setProfileForm({ ...profileForm, gender })}
-                    className={`py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold border transition cursor-pointer ${
-                      profileForm.gender === gender
+                    className={`py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold border transition cursor-pointer ${profileForm.gender === gender
                         ? 'bg-[#FEF3C7] border-[#E8B84B] text-[#B4821A]'
                         : 'bg-white border-[#E2E8F0] text-[#64748B] hover:text-[#0F172A]'
-                    }`}
+                      }`}
                   >
                     {gender}
                   </button>
@@ -432,11 +576,10 @@ export default function ProfilePage({
                 key={item.val}
                 type="button"
                 onClick={() => setDonateAmount(item.val)}
-                className={`py-2.5 sm:py-3 px-2 sm:px-3 rounded-xl sm:rounded-2xl border text-[10px] sm:text-xs font-bold flex items-center justify-center gap-1 sm:gap-1.5 transition cursor-pointer ${
-                  donateAmount === item.val
+                className={`py-2.5 sm:py-3 px-2 sm:px-3 rounded-xl sm:rounded-2xl border text-[10px] sm:text-xs font-bold flex items-center justify-center gap-1 sm:gap-1.5 transition cursor-pointer ${donateAmount === item.val
                     ? 'bg-[#FEF3C7] border-[#E8B84B] text-[#B4821A]'
                     : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#1E293B] hover:border-[#CBD5E1]'
-                }`}
+                  }`}
               >
                 <span>{item.emoji}</span>
                 <span>{item.label}</span>
@@ -454,11 +597,10 @@ export default function ProfilePage({
                   setDonatePayment('payme');
                   showToast("Hozirda ta'mirlash ishlari olib borilmoqda");
                 }}
-                className={`py-3 sm:py-3.5 px-3 sm:px-4 rounded-xl sm:rounded-2xl border flex items-center justify-center gap-1.5 sm:gap-2 transition cursor-pointer font-bold text-xs sm:text-sm ${
-                  donatePayment === 'payme'
+                className={`py-3 sm:py-3.5 px-3 sm:px-4 rounded-xl sm:rounded-2xl border flex items-center justify-center gap-1.5 sm:gap-2 transition cursor-pointer font-bold text-xs sm:text-sm ${donatePayment === 'payme'
                     ? 'bg-[#E0F2FE] border-[#0284C7] text-[#0284C7]'
                     : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#1E293B]'
-                }`}
+                  }`}
               >
                 <span>Pay</span><span className="text-[#0284C7]">me</span>
               </button>
@@ -468,11 +610,10 @@ export default function ProfilePage({
                   setDonatePayment('click');
                   showToast("Hozirda ta'mirlash ishlari olib borilmoqda");
                 }}
-                className={`py-3 sm:py-3.5 px-3 sm:px-4 rounded-xl sm:rounded-2xl border flex items-center justify-center gap-1.5 sm:gap-2 transition cursor-pointer font-bold text-xs sm:text-sm ${
-                  donatePayment === 'click'
+                className={`py-3 sm:py-3.5 px-3 sm:px-4 rounded-xl sm:rounded-2xl border flex items-center justify-center gap-1.5 sm:gap-2 transition cursor-pointer font-bold text-xs sm:text-sm ${donatePayment === 'click'
                     ? 'bg-[#E0F2FE] border-[#0284C7] text-[#0284C7]'
                     : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#1E293B]'
-                }`}
+                  }`}
               >
                 <span>💠 CLICK</span>
               </button>
@@ -594,11 +735,10 @@ export default function ProfilePage({
               <button
                 type="button"
                 onClick={() => setGiftType('month')}
-                className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl border text-center transition cursor-pointer flex flex-col items-center justify-center ${
-                  giftType === 'month'
+                className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl border text-center transition cursor-pointer flex flex-col items-center justify-center ${giftType === 'month'
                     ? 'bg-[#ECFDF5] border-[#10B981] shadow-sm'
                     : 'bg-[#F8FAFC] border-[#E2E8F0]'
-                }`}
+                  }`}
               >
                 <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-[#D1FAE5] flex items-center justify-center mb-2 sm:mb-3">
                   <Gift className="w-6 h-6 sm:w-8 sm:h-8 text-[#059669]" />
@@ -611,11 +751,10 @@ export default function ProfilePage({
               <button
                 type="button"
                 onClick={() => setGiftType('year')}
-                className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl border text-center transition cursor-pointer flex flex-col items-center justify-center ${
-                  giftType === 'year'
+                className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl border text-center transition cursor-pointer flex flex-col items-center justify-center ${giftType === 'year'
                     ? 'bg-[#FEF2F2] border-[#EF4444] shadow-sm'
                     : 'bg-[#F8FAFC] border-[#E2E8F0]'
-                }`}
+                  }`}
               >
                 <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-[#FEE2E2] flex items-center justify-center mb-2 sm:mb-3">
                   <Gift className="w-6 h-6 sm:w-8 sm:h-8 text-[#DC2626]" />
@@ -636,11 +775,10 @@ export default function ProfilePage({
                   setGiftPayment('payme');
                   showToast("Hozirda ta'mirlash ishlari olib borilmoqda");
                 }}
-                className={`py-3 sm:py-3.5 px-3 sm:px-4 rounded-xl sm:rounded-2xl border flex items-center justify-center gap-1.5 sm:gap-2 transition cursor-pointer font-bold text-xs sm:text-sm ${
-                  giftPayment === 'payme'
+                className={`py-3 sm:py-3.5 px-3 sm:px-4 rounded-xl sm:rounded-2xl border flex items-center justify-center gap-1.5 sm:gap-2 transition cursor-pointer font-bold text-xs sm:text-sm ${giftPayment === 'payme'
                     ? 'bg-[#E0F2FE] border-[#0284C7] text-[#0284C7]'
                     : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#1E293B]'
-                }`}
+                  }`}
               >
                 <span>Pay</span><span className="text-[#0284C7]">me</span>
               </button>
@@ -650,11 +788,10 @@ export default function ProfilePage({
                   setGiftPayment('click');
                   showToast("Hozirda ta'mirlash ishlari olib borilmoqda");
                 }}
-                className={`py-3 sm:py-3.5 px-3 sm:px-4 rounded-xl sm:rounded-2xl border flex items-center justify-center gap-1.5 sm:gap-2 transition cursor-pointer font-bold text-xs sm:text-sm ${
-                  giftPayment === 'click'
+                className={`py-3 sm:py-3.5 px-3 sm:px-4 rounded-xl sm:rounded-2xl border flex items-center justify-center gap-1.5 sm:gap-2 transition cursor-pointer font-bold text-xs sm:text-sm ${giftPayment === 'click'
                     ? 'bg-[#E0F2FE] border-[#0284C7] text-[#0284C7]'
                     : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#1E293B]'
-                }`}
+                  }`}
               >
                 <span>💠 CLICK</span>
               </button>
@@ -696,7 +833,7 @@ export default function ProfilePage({
         </div>
 
         <div className="space-y-3 sm:space-y-4">
-          
+
           {/* 1. Shaxsiy hisob guruhi */}
           <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-sm">
             <div className="px-3 sm:px-4 pt-2.5 sm:pt-3 pb-1 text-[10px] sm:text-[11px] font-bold text-[#64748B] uppercase tracking-wider">
@@ -763,20 +900,7 @@ export default function ProfilePage({
               <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#94A3B8] shrink-0" />
             </button>
 
-            {/* Tanlovlar */}
-            <button
-              type="button"
-              onClick={() => openEmptyPage('Tanlovlar')}
-              className="w-full px-3 sm:px-4 py-3 sm:py-3.5 flex items-center justify-between hover:bg-[#F1F5F9] active:bg-[#E2E8F0] transition text-left cursor-pointer"
-            >
-              <div className="flex items-center gap-2.5 sm:gap-3">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#FEF3C7] flex items-center justify-center text-[#D97706] shrink-0">
-                  <Trophy className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                </div>
-                <span className="text-xs sm:text-sm font-medium text-[#0F172A]">Tanlovlar</span>
-              </div>
-              <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#94A3B8] shrink-0" />
-            </button>
+
           </div>
 
           {/* 2. Obuna guruhi */}
@@ -787,7 +911,7 @@ export default function ProfilePage({
 
             <button
               type="button"
-              onClick={() => openEmptyPage('Premium Obuna')}
+              onClick={() => navigateTo('premium')}
               className="w-full px-3 sm:px-4 py-3 sm:py-3.5 flex items-center justify-between hover:bg-[#F1F5F9] active:bg-[#E2E8F0] transition text-left cursor-pointer"
             >
               <div className="flex items-center gap-2.5 sm:gap-3">
@@ -845,9 +969,9 @@ export default function ProfilePage({
                 <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#E0F2FE] flex items-center justify-center text-[#0284C7] shrink-0">
                   <Bell className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </div>
-                <span className="text-xs sm:text-sm font-medium text-[#0F172A]">Noma (Bildirishnomalar)</span>
+                <span className="text-xs sm:text-sm font-medium text-[#0F172A]">Bildirishnoma</span>
               </div>
-              
+
               {/* Uiverse.io Switcher */}
               <label className="switch">
                 <input
@@ -999,7 +1123,7 @@ export default function ProfilePage({
       {/* ─── AVATAR VA PROFIL TAHRIRLASH TUGMASI ─── */}
       <div className="px-4 sm:px-5 pt-2 sm:pt-3 mb-4 sm:mb-5">
         <div className="flex items-center justify-between">
-          
+
           {/* Avatar */}
           <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-2 border-[#E8B84B] bg-[#FFFBEB] flex items-center justify-center overflow-hidden shadow-md shrink-0 select-none">
             <span className="text-xl sm:text-2xl font-black text-[#D97706] tracking-wider uppercase">
@@ -1073,7 +1197,7 @@ export default function ProfilePage({
 
           <button
             type="button"
-            onClick={() => openEmptyPage('Premium Obuna')}
+            onClick={() => navigateTo('premium')}
             className="relative z-10 px-3 sm:px-3.5 py-1.5 rounded-full bg-white/25 hover:bg-white/35 backdrop-blur-md text-white text-[10px] sm:text-xs font-bold transition shrink-0 cursor-pointer ml-2"
           >
             Premium &gt;
@@ -1083,7 +1207,7 @@ export default function ProfilePage({
 
       {/* ─── STATISTIKA KARTALARI ─── */}
       <div className="px-4 sm:px-5 grid grid-cols-2 gap-2 sm:gap-3 mb-4">
-        
+
         {/* 1. XP / Bilig hisobi */}
         <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl sm:rounded-2xl p-3 sm:p-4 flex flex-col justify-between shadow-sm">
           <span className="text-[9px] sm:text-[11px] font-semibold text-[#64748B]">Bilig hisobi / XP</span>
