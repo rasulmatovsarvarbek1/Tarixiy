@@ -1,5 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Lock, Sparkles, AlertCircle, CheckCircle2, Shield, Compass, Landmark, Trophy, DoorClosed, KeyRound, Sparkle, ChevronsRight } from 'lucide-react';
+import BookReader from '../components/BookReader';
+import { getLevel } from '../lib/lessons';
+import {
+  getUnlocked,
+  saveUnlocked,
+  getCompleted,
+  saveCompleted,
+} from '../lib/readerStorage';
 
 // 5-sinfdan 11-sinfgacha jami 7 ta sinf ma'lumotlari (har birida 10 tadan dars = jami 70 Level)
 const GRADES_CONFIG = [
@@ -15,88 +23,88 @@ const GRADES_CONFIG = [
 // 70 ta Level darslari
 const LEVELS_DATA = [
   // ──── 5-SINF (1 - 10 Level) ────
-  { id: 1, grade: 5, title: "1 Level", topic: "Qadimgi davr va ilk odamlar", progress: 20, isLocked: false },
-  { id: 2, grade: 5, title: "2 Level", topic: "Zardushtiylik va Avesto", progress: 0, isLocked: true },
-  { id: 3, grade: 5, title: "3 Level", topic: "Qadimgi Baqtriya va Sug'd", progress: 0, isLocked: true },
-  { id: 4, grade: 5, title: "4 Level", topic: "Iskandar Zulqarnayn yurishi", progress: 0, isLocked: true },
-  { id: 5, grade: 5, title: "5 Level", topic: "Salavkiylar saltanati", progress: 0, isLocked: true },
-  { id: 6, grade: 5, title: "6 Level", topic: "Yunon-Baqtriya podsholigi", progress: 0, isLocked: true },
-  { id: 7, grade: 5, title: "7 Level", topic: "Qang' davlati madaniyati", progress: 0, isLocked: true },
-  { id: 8, grade: 5, title: "8 Level", topic: "Kushon imperiyasi yuksalishi", progress: 0, isLocked: true },
-  { id: 9, grade: 5, title: "9 Level", topic: "Eftaliylar va Qadimgi Xorazm", progress: 0, isLocked: true },
-  { id: 10, grade: 5, title: "10 Level", topic: "5-sinf Yakuniy Sinov", progress: 0, isLocked: true, isExam: true },
+  { id: 1, grade: 5, title: "1 Level", topic: "Qadimgi davr va ilk odamlar" },
+  { id: 2, grade: 5, title: "2 Level", topic: "Zardushtiylik va Avesto" },
+  { id: 3, grade: 5, title: "3 Level", topic: "Qadimgi Baqtriya va Sug'd" },
+  { id: 4, grade: 5, title: "4 Level", topic: "Iskandar Zulqarnayn yurishi" },
+  { id: 5, grade: 5, title: "5 Level", topic: "Salavkiylar saltanati" },
+  { id: 6, grade: 5, title: "6 Level", topic: "Yunon-Baqtriya podsholigi" },
+  { id: 7, grade: 5, title: "7 Level", topic: "Qang' davlati madaniyati" },
+  { id: 8, grade: 5, title: "8 Level", topic: "Kushon imperiyasi yuksalishi" },
+  { id: 9, grade: 5, title: "9 Level", topic: "Eftaliylar va Qadimgi Xorazm" },
+  { id: 10, grade: 5, title: "10 Level", topic: "5-sinf Yakuniy Sinov", isExam: true },
 
   // ──── 6-SINF (11 - 20 Level) ────
-  { id: 11, grade: 6, title: "11 Level", topic: "Buyuk Turk xoqonligi", progress: 0, isLocked: true },
-  { id: 12, grade: 6, title: "12 Level", topic: "Arab xalifaligi va Movarounnahr", progress: 0, isLocked: true },
-  { id: 13, grade: 6, title: "13 Level", topic: "Muqanna va Abu Muslim qo'zg'oloni", progress: 0, isLocked: true },
-  { id: 14, grade: 6, title: "14 Level", topic: "Tohiriylar va Somoniylar davlati", progress: 0, isLocked: true },
-  { id: 15, grade: 6, title: "15 Level", topic: "Qoraxoniylar va G'aznaviylar", progress: 0, isLocked: true },
-  { id: 16, grade: 6, title: "16 Level", topic: "Buyuk Saljuqiylar imperiyasi", progress: 0, isLocked: true },
-  { id: 17, grade: 6, title: "17 Level", topic: "Xorazmshohlar qudrati", progress: 0, isLocked: true },
-  { id: 18, grade: 6, title: "18 Level", topic: "Mo'g'ullar istilosi va Jaloliddin", progress: 0, isLocked: true },
-  { id: 19, grade: 6, title: "19 Level", topic: "Chig'atoy ulusi davri", progress: 0, isLocked: true },
-  { id: 20, grade: 6, title: "20 Level", topic: "6-sinf Yakuniy Sinov", progress: 0, isLocked: true, isExam: true },
+  { id: 11, grade: 6, title: "11 Level", topic: "Buyuk Turk xoqonligi" },
+  { id: 12, grade: 6, title: "12 Level", topic: "Arab xalifaligi va Movarounnahr" },
+  { id: 13, grade: 6, title: "13 Level", topic: "Muqanna va Abu Muslim qo'zg'oloni" },
+  { id: 14, grade: 6, title: "14 Level", topic: "Tohiriylar va Somoniylar davlati" },
+  { id: 15, grade: 6, title: "15 Level", topic: "Qoraxoniylar va G'aznaviylar" },
+  { id: 16, grade: 6, title: "16 Level", topic: "Buyuk Saljuqiylar imperiyasi" },
+  { id: 17, grade: 6, title: "17 Level", topic: "Xorazmshohlar qudrati" },
+  { id: 18, grade: 6, title: "18 Level", topic: "Mo'g'ullar istilosi va Jaloliddin" },
+  { id: 19, grade: 6, title: "19 Level", topic: "Chig'atoy ulusi davri" },
+  { id: 20, grade: 6, title: "20 Level", topic: "6-sinf Yakuniy Sinov", isExam: true },
 
   // ──── 7-SINF (21 - 30 Level) ────
-  { id: 21, grade: 7, title: "21 Level", topic: "Amir Temur davlatining yuksalishi", progress: 0, isLocked: true },
-  { id: 22, grade: 7, title: "22 Level", topic: "Sohibqironning harbiy yurishlari", progress: 0, isLocked: true },
-  { id: 23, grade: 7, title: "23 Level", topic: "Mirzo Ulug'bek va Samarqand akademiyasi", progress: 0, isLocked: true },
-  { id: 24, grade: 7, title: "24 Level", topic: "Alisher Navoiy va Hirot madaniyati", progress: 0, isLocked: true },
-  { id: 25, grade: 7, title: "25 Level", topic: "Zahiriddin Muhammad Bobur hayoti", progress: 0, isLocked: true },
-  { id: 26, grade: 7, title: "26 Level", topic: "Buyuk Boburiylar imperiyasi", progress: 0, isLocked: true },
-  { id: 27, grade: 7, title: "27 Level", topic: "Shayboniylar sulolasi hukmronligi", progress: 0, isLocked: true },
-  { id: 28, grade: 7, title: "28 Level", topic: "Ashtarxoniylar davri siyosati", progress: 0, isLocked: true },
-  { id: 29, grade: 7, title: "29 Level", topic: "O'rta asrlarda ilm-fan va me'morlik", progress: 0, isLocked: true },
-  { id: 30, grade: 7, title: "30 Level", topic: "7-sinf Yakuniy Sinov", progress: 0, isLocked: true, isExam: true },
+  { id: 21, grade: 7, title: "21 Level", topic: "Amir Temur davlatining yuksalishi" },
+  { id: 22, grade: 7, title: "22 Level", topic: "Sohibqironning harbiy yurishlari" },
+  { id: 23, grade: 7, title: "23 Level", topic: "Mirzo Ulug'bek va Samarqand akademiyasi" },
+  { id: 24, grade: 7, title: "24 Level", topic: "Alisher Navoiy va Hirot madaniyati" },
+  { id: 25, grade: 7, title: "25 Level", topic: "Zahiriddin Muhammad Bobur hayoti" },
+  { id: 26, grade: 7, title: "26 Level", topic: "Buyuk Boburiylar imperiyasi" },
+  { id: 27, grade: 7, title: "27 Level", topic: "Shayboniylar sulolasi hukmronligi" },
+  { id: 28, grade: 7, title: "28 Level", topic: "Ashtarxoniylar davri siyosati" },
+  { id: 29, grade: 7, title: "29 Level", topic: "O'rta asrlarda ilm-fan va me'morlik" },
+  { id: 30, grade: 7, title: "30 Level", topic: "7-sinf Yakuniy Sinov", isExam: true },
 
   // ──── 8-SINF (31 - 40 Level) ────
-  { id: 31, grade: 8, title: "31 Level", topic: "Buxoro amirligi tashkil topishi", progress: 0, isLocked: true },
-  { id: 32, grade: 8, title: "32 Level", topic: "Xiva xonligi va Qo'ng'irotlar", progress: 0, isLocked: true },
-  { id: 33, grade: 8, title: "33 Level", topic: "Qo'qon xonligi yuksalishi", progress: 0, isLocked: true },
-  { id: 34, grade: 8, title: "34 Level", topic: "Xonliklararo munosabatlar va savdo", progress: 0, isLocked: true },
-  { id: 35, grade: 8, title: "35 Level", topic: "Madaniy hayot, adabiyot va san'at", progress: 0, isLocked: true },
-  { id: 36, grade: 8, title: "36 Level", topic: "Xonliklarda ijtimoiy tuzum", progress: 0, isLocked: true },
-  { id: 37, grade: 8, title: "37 Level", topic: "Tashqi aloqalar va elchiliklar", progress: 0, isLocked: true },
-  { id: 38, grade: 8, title: "38 Level", topic: "Xalq harakatlari va qo'zg'olonlar", progress: 0, isLocked: true },
-  { id: 39, grade: 8, title: "39 Level", topic: "XIX asr o'rtalarida madaniyat", progress: 0, isLocked: true },
-  { id: 40, grade: 8, title: "40 Level", topic: "8-sinf Yakuniy Sinov", progress: 0, isLocked: true, isExam: true },
+  { id: 31, grade: 8, title: "31 Level", topic: "Buxoro amirligi tashkil topishi" },
+  { id: 32, grade: 8, title: "32 Level", topic: "Xiva xonligi va Qo'ng'irotlar" },
+  { id: 33, grade: 8, title: "33 Level", topic: "Qo'qon xonligi yuksalishi" },
+  { id: 34, grade: 8, title: "34 Level", topic: "Xonliklararo munosabatlar va savdo" },
+  { id: 35, grade: 8, title: "35 Level", topic: "Madaniy hayot, adabiyot va san'at" },
+  { id: 36, grade: 8, title: "36 Level", topic: "Xonliklarda ijtimoiy tuzum" },
+  { id: 37, grade: 8, title: "37 Level", topic: "Tashqi aloqalar va elchiliklar" },
+  { id: 38, grade: 8, title: "38 Level", topic: "Xalq harakatlari va qo'zg'olonlar" },
+  { id: 39, grade: 8, title: "39 Level", topic: "XIX asr o'rtalarida madaniyat" },
+  { id: 40, grade: 8, title: "40 Level", topic: "8-sinf Yakuniy Sinov", isExam: true },
 
   // ──── 9-SINF (41 - 50 Level) ────
-  { id: 41, grade: 9, title: "41 Level", topic: "Chor Rossiyasining bosqini", progress: 0, isLocked: true },
-  { id: 42, grade: 9, title: "42 Level", topic: "Turkiston general-gubernatorligi", progress: 0, isLocked: true },
-  { id: 43, grade: 9, title: "43 Level", topic: "1898 va 1916-yilgi qo'zg'olonlar", progress: 0, isLocked: true },
-  { id: 44, grade: 9, title: "44 Level", topic: "Jadidchilik harakatining tug'ilishi", progress: 0, isLocked: true },
-  { id: 45, grade: 9, title: "45 Level", topic: "Mahmudxo'ja Behbudiy va matbuot", progress: 0, isLocked: true },
-  { id: 46, grade: 9, title: "46 Level", topic: "Munavvarqori va usuli jadid", progress: 0, isLocked: true },
-  { id: 47, grade: 9, title: "47 Level", topic: "Turkiston Muxtoriyati (1917)", progress: 0, isLocked: true },
-  { id: 48, grade: 9, title: "48 Level", topic: "BXSR va XXSR respublikalari", progress: 0, isLocked: true },
-  { id: 49, grade: 9, title: "49 Level", topic: "Milliy istiqlol fidoyilari", progress: 0, isLocked: true },
-  { id: 50, grade: 9, title: "50 Level", topic: "9-sinf Yakuniy Sinov", progress: 0, isLocked: true, isExam: true },
+  { id: 41, grade: 9, title: "41 Level", topic: "Chor Rossiyasining bosqini" },
+  { id: 42, grade: 9, title: "42 Level", topic: "Turkiston general-gubernatorligi" },
+  { id: 43, grade: 9, title: "43 Level", topic: "1898 va 1916-yilgi qo'zg'olonlar" },
+  { id: 44, grade: 9, title: "44 Level", topic: "Jadidchilik harakatining tug'ilishi" },
+  { id: 45, grade: 9, title: "45 Level", topic: "Mahmudxo'ja Behbudiy va matbuot" },
+  { id: 46, grade: 9, title: "46 Level", topic: "Munavvarqori va usuli jadid" },
+  { id: 47, grade: 9, title: "47 Level", topic: "Turkiston Muxtoriyati (1917)" },
+  { id: 48, grade: 9, title: "48 Level", topic: "BXSR va XXSR respublikalari" },
+  { id: 49, grade: 9, title: "49 Level", topic: "Milliy istiqlol fidoyilari" },
+  { id: 50, grade: 9, title: "50 Level", topic: "9-sinf Yakuniy Sinov", isExam: true },
 
   // ──── 10-SINF (51 - 60 Level) ────
-  { id: 51, grade: 10, title: "51 Level", topic: "Sovet hokimiyati o'rnatilishi", progress: 0, isLocked: true },
-  { id: 52, grade: 10, title: "52 Level", topic: "O'zbekiston SSR tashkil topishi (1924)", progress: 0, isLocked: true },
-  { id: 53, grade: 10, title: "53 Level", topic: "Qatag'on davri va qurbonlari (1937-1938)", progress: 0, isLocked: true },
-  { id: 54, grade: 10, title: "54 Level", topic: "Ikkinchi jahon urushida jasorat", progress: 0, isLocked: true },
-  { id: 55, grade: 10, title: "55 Level", topic: "Urushdan keyingi tiklanish yillari", progress: 0, isLocked: true },
-  { id: 56, grade: 10, title: "56 Level", topic: "Paxta yakkahokimligi va 'Paxta ishi'", progress: 0, isLocked: true },
-  { id: 57, grade: 10, title: "57 Level", topic: "Orol fojiasi va ekologiya", progress: 0, isLocked: true },
-  { id: 58, grade: 10, title: "58 Level", topic: "Milliy o'zlikni anglash jarayoni", progress: 0, isLocked: true },
-  { id: 59, grade: 10, title: "59 Level", topic: "Davlat tili to'g'risidagi qonun (1989)", progress: 0, isLocked: true },
-  { id: 60, grade: 10, title: "60 Level", topic: "10-sinf Yakuniy Sinov", progress: 0, isLocked: true, isExam: true },
+  { id: 51, grade: 10, title: "51 Level", topic: "Sovet hokimiyati o'rnatilishi" },
+  { id: 52, grade: 10, title: "52 Level", topic: "O'zbekiston SSR tashkil topishi (1924)" },
+  { id: 53, grade: 10, title: "53 Level", topic: "Qatag'on davri va qurbonlari (1937-1938)" },
+  { id: 54, grade: 10, title: "54 Level", topic: "Ikkinchi jahon urushida jasorat" },
+  { id: 55, grade: 10, title: "55 Level", topic: "Urushdan keyingi tiklanish yillari" },
+  { id: 56, grade: 10, title: "56 Level", topic: "Paxta yakkahokimligi va 'Paxta ishi'" },
+  { id: 57, grade: 10, title: "57 Level", topic: "Orol fojiasi va ekologiya" },
+  { id: 58, grade: 10, title: "58 Level", topic: "Milliy o'zlikni anglash jarayoni" },
+  { id: 59, grade: 10, title: "59 Level", topic: "Davlat tili to'g'risidagi qonun (1989)" },
+  { id: 60, grade: 10, title: "60 Level", topic: "10-sinf Yakuniy Sinov", isExam: true },
 
   // ──── 11-SINF (61 - 70 Level) ────
-  { id: 61, grade: 11, title: "61 Level", topic: "O'zbekiston Mustaqilligi (1991)", progress: 0, isLocked: true },
-  { id: 62, grade: 11, title: "62 Level", topic: "Konstitutsiya va davlat ramzlari", progress: 0, isLocked: true },
-  { id: 63, grade: 11, title: "63 Level", topic: "Milliy valyuta - So'm joriy etilishi", progress: 0, isLocked: true },
-  { id: 64, grade: 11, title: "64 Level", topic: "BMT va xalqaro tashkilotlar", progress: 0, isLocked: true },
-  { id: 65, grade: 11, title: "65 Level", topic: "Buyuk Ipak yo'lining qayta tiklanishi", progress: 0, isLocked: true },
-  { id: 66, grade: 11, title: "66 Level", topic: "Ta'lim, sport va yoshlar siyosati", progress: 0, isLocked: true },
-  { id: 67, grade: 11, title: "67 Level", topic: "Madaniy meros va ziyorat turizmi", progress: 0, isLocked: true },
-  { id: 68, grade: 11, title: "68 Level", topic: "Yangi O'zbekiston taraqqiyot strategiyasi", progress: 0, isLocked: true },
-  { id: 69, grade: 11, title: "69 Level", topic: "Uchinchi Renessans poydevori", progress: 0, isLocked: true },
-  { id: 70, grade: 11, title: "70 Level", topic: "11-sinf Katta Bitiruv Imtihoni", progress: 0, isLocked: true, isExam: true },
+  { id: 61, grade: 11, title: "61 Level", topic: "O'zbekiston Mustaqilligi (1991)" },
+  { id: 62, grade: 11, title: "62 Level", topic: "Konstitutsiya va davlat ramzlari" },
+  { id: 63, grade: 11, title: "63 Level", topic: "Milliy valyuta - So'm joriy etilishi" },
+  { id: 64, grade: 11, title: "64 Level", topic: "BMT va xalqaro tashkilotlar" },
+  { id: 65, grade: 11, title: "65 Level", topic: "Buyuk Ipak yo'lining qayta tiklanishi" },
+  { id: 66, grade: 11, title: "66 Level", topic: "Ta'lim, sport va yoshlar siyosati" },
+  { id: 67, grade: 11, title: "67 Level", topic: "Madaniy meros va ziyorat turizmi" },
+  { id: 68, grade: 11, title: "68 Level", topic: "Yangi O'zbekiston taraqqiyot strategiyasi" },
+  { id: 69, grade: 11, title: "69 Level", topic: "Uchinchi Renessans poydevori" },
+  { id: 70, grade: 11, title: "70 Level", topic: "11-sinf Katta Bitiruv Imtihoni", isExam: true },
 ];
 
 // SVG 4-burchakli yulduz (#FFD800)
@@ -193,116 +201,121 @@ function ClassGatePortal({ gradeNumber, gradeTitle, isUnlocked = false }) {
   );
 }
 
-export default function RoadmapPage({ onNavigate }) {
+export default function RoadmapPage({ onNavigate, onLevelOpenChange }) {
   const [toast, setToast] = useState(null);
   const [shakingId, setShakingId] = useState(null);
   const [selectedLevel, setSelectedLevel] = useState(null);
-  const [showIntroPage, setShowIntroPage] = useState(true);
-  const [dragStartX, setDragStartX] = useState(null);
+  const [readerLevel, setReaderLevel] = useState(null);
+  const [readerError, setReaderError] = useState('');
+
+  // ─── Unlocked & Completed holatlar (localStorage dan) ───
+  const [unlockedIds, setUnlockedIds] = useState(() => getUnlocked());
+  const [completedIds, setCompletedIds] = useState(() => getCompleted());
+
+  // Oldingi level nomini topish (qulflangan kartochkaga bosilganda toast uchun)
+  const getPrevLevelName = useCallback((levelId) => {
+    const prev = LEVELS_DATA.find((l) => l.id === levelId - 1);
+    return prev ? `${prev.title}: ${prev.topic}` : '1 Level';
+  }, []);
+
+  const isUnlocked = useCallback((levelId) => unlockedIds.includes(levelId), [unlockedIds]);
+  const isCompleted = useCallback((levelId) => completedIds.includes(levelId), [completedIds]);
+
+  const getProgress = useCallback((levelId) => {
+    if (isCompleted(levelId)) return 100;
+    if (isUnlocked(levelId)) return 0;
+    return 0;
+  }, [isCompleted, isUnlocked]);
 
   const handleCardClick = (level) => {
-    if (level.isLocked) {
+    if (!isUnlocked(level.id)) {
       setShakingId(level.id);
-      setToast(`🔒 "${level.title}: ${level.topic}" qulflangan. Avval 1 Level darsini yakunlang!`);
+      setToast(`🔒 "${level.title}: ${level.topic}" qulflangan. Avval ${getPrevLevelName(level.id)} ni yakunlang!`);
       setTimeout(() => setShakingId(null), 500);
       setTimeout(() => setToast(null), 3000);
       return;
     }
 
     setSelectedLevel(level);
-    setShowIntroPage(true);
+    setReaderLevel(null);
+    setReaderError('');
+    onLevelOpenChange?.(true);
   };
 
-  const openNextPage = () => {
-    setShowIntroPage(false);
+  const handleClose = () => {
+    setSelectedLevel(null);
+    setReaderLevel(null);
+    onLevelOpenChange?.(false);
   };
 
-  const handlePointerStart = (clientX) => {
-    setDragStartX(clientX);
-  };
+  useEffect(() => {
+    if (!selectedLevel) return undefined;
+    let active = true;
+    getLevel(selectedLevel.id)
+      .then((level) => {
+        if (active) setReaderLevel(level);
+      })
+      .catch((error) => {
+        if (active) setReaderError(error instanceof Error ? error.message : 'Darslarni yuklab bo‘lmadi.');
+      });
+    return () => { active = false; };
+  }, [selectedLevel]);
 
-  const handlePointerEnd = (clientX) => {
-    if (dragStartX === null) return;
-    const diff = clientX - dragStartX;
-    if (diff < -70) {
-      openNextPage();
+  const handleFinish = useCallback((level) => {
+    // 1. Hozirgi levelni completed ga qo'shish
+    const newCompleted = [...completedIds];
+    if (!newCompleted.includes(level.id)) newCompleted.push(level.id);
+    setCompletedIds(newCompleted);
+    saveCompleted(newCompleted);
+
+    // 2. Keyingi leverni ochish
+    const nextId = level.id + 1;
+    if (nextId <= 70) {
+      const newUnlocked = [...unlockedIds];
+      if (!newUnlocked.includes(nextId)) newUnlocked.push(nextId);
+      setUnlockedIds(newUnlocked);
+      saveUnlocked(newUnlocked);
+
+      // Toast: level ochildi
+      const nextLevel = LEVELS_DATA.find((l) => l.id === nextId);
+      const nextName = nextLevel ? nextLevel.title : `${nextId} Level`;
+      setTimeout(() => {
+        setToast(`🔓 ${nextName} ochildi`);
+        setTimeout(() => setToast(null), 3000);
+      }, 200);
     }
-    setDragStartX(null);
-  };
 
-  const handleTouchStart = (event) => {
-    handlePointerStart(event.touches[0].clientX);
-  };
-
-  const handleTouchEnd = (event) => {
-    handlePointerEnd(event.changedTouches[0].clientX);
-  };
-
-  const handleMouseDown = (event) => {
-    handlePointerStart(event.clientX);
-  };
-
-  const handleMouseUp = (event) => {
-    handlePointerEnd(event.clientX);
-  };
+    // 3. Readerni yopish
+    setSelectedLevel(null);
+    onLevelOpenChange?.(false);
+  }, [completedIds, unlockedIds, onLevelOpenChange]);
 
   if (selectedLevel) {
-    if (showIntroPage) {
+    if (readerError) {
       return (
-        <div
-          className="fixed inset-0 w-full h-screen bg-[#F8F8F8] overflow-hidden px-6 pt-10 pb-8"
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
-          onMouseDown={handleMouseDown}
-          onMouseUp={handleMouseUp}
-        >
-          <div className="relative w-full h-full flex flex-col items-center justify-center">
-            <div className="flex flex-col items-center justify-center -mt-8">
-              <div className="flex items-end justify-center gap-0 text-[42px] sm:text-[52px] font-black tracking-[-0.07em] leading-none select-none">
-                <span className="text-[#111827]">Jahon</span>
-                <span className="text-[#F97316]">Tarixi</span>
-              </div>
-              <div className="mt-2 text-[24px] sm:text-[28px] font-bold tracking-[-0.04em] text-[#111827] leading-none">
-                Kirish
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={openNextPage}
-              className="absolute right-5 bottom-20 flex items-center justify-center w-12 h-12 rounded-full bg-white/90 border border-[#E5E7EB] shadow-[0_8px_30px_rgba(17,24,39,0.12)] text-[#111827] active:scale-95 transition"
-              aria-label="Keyingi sahifaga o'tish"
-            >
-              <ChevronsRight className="w-5 h-5" />
-            </button>
-          </div>
+        <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-white px-5 text-center">
+          <p role="alert" className="text-sm text-red-700">{readerError}</p>
+          <button type="button" onClick={handleClose} className="rounded-xl bg-[#E8B84B] px-4 py-2 font-semibold text-[#2A2A2A]">Orqaga</button>
         </div>
       );
     }
-
-    return (
-      <div
-        className="fixed inset-0 w-full h-screen bg-white overflow-hidden px-4 pt-5 pb-6 book-page"
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
-      >
-        <div className="relative w-full h-full flex flex-col bg-white">
-          <div className="flex items-center justify-between mb-8">
-            <button
-              type="button"
-              onClick={() => setSelectedLevel(null)}
-              className="text-sm font-semibold text-[#111827]"
-            >
-              Orqaga
-            </button>
-            <span className="text-xs font-medium text-[#64748B]">{selectedLevel.title}</span>
-          </div>
-
-          <div className="flex-1" />
+    if (!readerLevel) {
+      return <div className="flex min-h-screen items-center justify-center bg-white text-sm text-[#6F6A62]">Yuklanmoqda...</div>;
+    }
+    if (readerLevel.darslar.length === 0) {
+      return (
+        <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-white px-5 text-center">
+          <p className="text-sm text-[#6F6A62]">Bu levelda e’lon qilingan darslar mavjud emas.</p>
+          <button type="button" onClick={handleClose} className="rounded-xl bg-[#E8B84B] px-4 py-2 font-semibold text-[#2A2A2A]">Orqaga</button>
         </div>
-      </div>
+      );
+    }
+    return (
+      <BookReader
+        level={readerLevel}
+        onClose={handleClose}
+        onFinish={handleFinish}
+      />
     );
   }
 
@@ -406,7 +419,8 @@ export default function RoadmapPage({ onNavigate }) {
             {LEVELS_DATA.map((level, index) => {
               const isLeft = index % 2 === 0;
               const isShaking = shakingId === level.id;
-              const isOpen = !level.isLocked;
+              const isOpen = isUnlocked(level.id);
+              const progress = getProgress(level.id);
               const nextLevel = LEVELS_DATA[index + 1];
 
               const isEndOfGrade = level.id % 10 === 0 && level.id < 70;
@@ -431,9 +445,9 @@ export default function RoadmapPage({ onNavigate }) {
                       <div className="flex items-center justify-between">
                         <span className={`text-[21px] min-[360px]:text-[24px] font-extrabold leading-none tracking-tight ${isOpen ? 'text-white' : 'text-white/80'
                           }`}>
-                          {level.progress}%
+                          {progress}%
                         </span>
-                        {level.isLocked ? (
+                        {!isOpen ? (
                           <div className="w-6 h-6 min-[360px]:w-7 min-[360px]:h-7 rounded-full bg-[#181A24] flex items-center justify-center text-white/50">
                             <Lock className="w-3 h-3 min-[360px]:w-3.5 min-[360px]:h-3.5" />
                           </div>
@@ -591,5 +605,3 @@ export default function RoadmapPage({ onNavigate }) {
     </div>
   );
 }
-
-

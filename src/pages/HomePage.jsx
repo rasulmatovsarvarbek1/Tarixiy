@@ -798,7 +798,13 @@ export default function HomePage({
       ═══════════════════════════════════ */}
       <header className="px-4 sm:px-5 pt-7 sm:pt-9 pb-3 sm:pb-4">
         <div className="flex items-center justify-between rounded-[26px] border border-slate-200/80 bg-white/80 px-3 py-2.5 shadow-[0_8px_24px_rgba(15,23,42,0.06)] backdrop-blur-sm">
-          <h1 className="text-[#0F172A] font-extrabold text-[22px] sm:text-[24px] tracking-tight">Tarixiy</h1>
+          <button
+            type="button"
+            onClick={() => window.location.assign('/admin')}
+            className="text-[#0F172A] font-extrabold text-[22px] sm:text-[24px] tracking-tight"
+          >
+            Tarixiy
+          </button>
 
           {/* O'ng: xabar + qo'ng'iroq */}
           <div className="flex items-center gap-1.5">

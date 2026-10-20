@@ -15,6 +15,7 @@ import {
   Award
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import BookReader from '../components/BookReader';
 
 export default function UnitDetailPage({ unit, progressState, onUpdateProgress, onBack }) {
   // Ketma-ketlik holati (Supabase user_progress jadvaliga mos struktura)
@@ -42,6 +43,11 @@ export default function UnitDetailPage({ unit, progressState, onUpdateProgress, 
   const [toastMessage, setToastMessage] = useState('');
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [simulatedVideoProgress, setSimulatedVideoProgress] = useState(0);
+  const lessonContent = typeof unit?.content_markdown === 'string'
+    ? unit.content_markdown
+    : typeof unit?.content === 'string'
+    ? unit.content
+    : '';
 
   // Qulflangan kartaga bosilganda xabar berish
   const handleLockedClick = (cardName, reason) => {
@@ -69,6 +75,16 @@ export default function UnitDetailPage({ unit, progressState, onUpdateProgress, 
     });
     setActiveModal(null);
     confetti({ particleCount: 40, spread: 60, origin: { y: 0.6 }, colors: ['#E8B84B', '#3F8F6F'] });
+  };
+
+  const handleBookReadComplete = () => {
+    if (progressState?.book_read_completed) return;
+    onUpdateProgress({
+      ...progressState,
+      text_completed: true,
+      book_read_completed: true,
+      xp_earned: (progressState?.xp_earned || 0) + 15
+    });
   };
 
   // Audio tugallanganda (Unit 100% bo'ladi)
@@ -360,6 +376,13 @@ export default function UnitDetailPage({ unit, progressState, onUpdateProgress, 
               <FileText className="w-5 h-5" />
               <h3 className="font-serif text-lg font-bold text-[#F0EAD6]">2-Qadam: Dars Matni</h3>
             </div>
+
+            <BookReader
+              lesson={unit}
+              content={lessonContent}
+              onReadComplete={handleBookReadComplete}
+              onFinish={() => setActiveModal(null)}
+            />
 
             <div className="space-y-4 font-serif text-sm leading-relaxed text-[#F0EAD6] border-t border-[#30363D] pt-4 mb-6">
               <p>

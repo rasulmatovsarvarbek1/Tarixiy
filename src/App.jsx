@@ -6,8 +6,16 @@ import ResourcesPage from './pages/ResourcesPage';
 import ProfilePage from './pages/ProfilePage';
 import BottomNav from './components/layout/BottomNav';
 import { dashboardData } from './data/dashboardData';
+import AdminPage from './pages/AdminPage';
 
 export default function App() {
+  if (window.location.pathname.startsWith('/admin')) {
+    return <AdminPage />;
+  }
+  return <MainApp />;
+}
+
+function MainApp() {
   const [appState, setAppState] = useState('register');
   const [activeTab, setActiveTab] = useState('home');
   const [homeSubPage, setHomeSubPage] = useState(null);
@@ -46,11 +54,13 @@ export default function App() {
     }
   };
 
+  const [isLessonOpen, setIsLessonOpen] = useState(false);
+
   // Faqat asosiy 4 ta sahifada (Bosh sahifa, Darslar, Resurslar, Profil) pastdagi navbar ko'rinadi.
-  // Har qanday sub-page (magazin, quiz, medals, ranking, profil sozlamalari, donat va h.k.) ochilganda navbar YASHIRILADI!
+  // Har qanday sub-page yoki dars ochilganda navbar YASHIRILADI!
   const isHomeSubPage = activeTab === 'home' && homeSubPage !== null;
   const isProfileSubPage = activeTab === 'profile' && profileSubPage !== 'main';
-  const shouldHideBottomNav = isHomeSubPage || isProfileSubPage;
+  const shouldHideBottomNav = isHomeSubPage || isProfileSubPage || isLessonOpen;
 
   return (
     <div className="min-h-screen bg-[#F1F5F9] text-[#1E293B] flex justify-center selection:bg-[#E8B84B] selection:text-[#0D1117]">
@@ -88,6 +98,7 @@ export default function App() {
               {/* LESSONS */}
               <div key={`lessons-${activeTab}`} style={{ display: activeTab === 'lessons' ? 'block' : 'none' }} className="page-transition book-page">
                 <RoadmapPage
+                  onLevelOpenChange={setIsLessonOpen}
                   onNavigate={(dest) => {
                     if (dest === 'magazin') {
                       setActiveTab('home');
