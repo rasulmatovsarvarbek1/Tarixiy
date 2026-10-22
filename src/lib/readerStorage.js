@@ -10,6 +10,8 @@ const KEYS = {
   unlocked: 'roadmap:unlocked',   // [1, 2, 3, ...]
   completed: 'roadmap:completed', // [1, 2, ...]
 };
+const READER_THEME_IDS = ['white', 'cream', 'gray', 'black'];
+const READER_SETTINGS_VERSION = 2;
 
 function read(key, fallback) {
   try {
@@ -78,12 +80,28 @@ export const DEFAULT_SETTINGS = {
 
 // TODO: Supabase
 export function getSettings() {
-  return read(KEYS.settings, { ...DEFAULT_SETTINGS });
+  const saved = read(KEYS.settings, {});
+  const isLegacySettings = saved.version !== READER_SETTINGS_VERSION;
+  const settings = {
+    ...DEFAULT_SETTINGS,
+    ...saved,
+    ...(isLegacySettings ? {
+      fontSize: DEFAULT_SETTINGS.fontSize,
+      fontFamily: DEFAULT_SETTINGS.fontFamily,
+      bgTheme: DEFAULT_SETTINGS.bgTheme,
+      brightness: DEFAULT_SETTINGS.brightness,
+      autoTheme: DEFAULT_SETTINGS.autoTheme,
+    } : {}),
+    version: READER_SETTINGS_VERSION,
+  };
+  if (!READER_THEME_IDS.includes(settings.bgTheme)) settings.bgTheme = DEFAULT_SETTINGS.bgTheme;
+  if (isLegacySettings) write(KEYS.settings, settings);
+  return settings;
 }
 
 // TODO: Supabase
 export function saveSettings(settings) {
-  write(KEYS.settings, settings);
+  write(KEYS.settings, { ...settings, version: READER_SETTINGS_VERSION });
 }
 
 /* ─── UNLOCKED (ochiq levellar) ─── */

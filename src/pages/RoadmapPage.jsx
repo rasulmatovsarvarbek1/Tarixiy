@@ -1,111 +1,19 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Lock, Sparkles, AlertCircle, CheckCircle2, Shield, Compass, Landmark, Trophy, DoorClosed, KeyRound, Sparkle, ChevronsRight } from 'lucide-react';
+import { Lock, Sparkles, AlertCircle, DoorClosed } from 'lucide-react';
 import BookReader from '../components/BookReader';
-import { getLevel } from '../lib/lessons';
 import {
-  getUnlocked,
-  saveUnlocked,
+  getCachedLevel,
+  getCachedLevels,
+  getLevel,
+  getLevels,
+  getPublicDataError,
+  refreshPublicData,
+  subscribeToLessonData,
+} from '../lib/lessons';
+import {
   getCompleted,
   saveCompleted,
 } from '../lib/readerStorage';
-
-// 5-sinfdan 11-sinfgacha jami 7 ta sinf ma'lumotlari (har birida 10 tadan dars = jami 70 Level)
-const GRADES_CONFIG = [
-  { grade: 5, name: "5-sinf", title: "Qadimgi Dunyo Tarixi", range: [1, 10], color: "#D4921A" },
-  { grade: 6, name: "6-sinf", title: "Ilk O'rta Asrlar", range: [11, 20], color: "#3B82F6" },
-  { grade: 7, name: "7-sinf", title: "Temuriylar Saltanati", range: [21, 30], color: "#10B981" },
-  { grade: 8, name: "8-sinf", title: "Uch Xonlik Davri", range: [31, 40], color: "#8B5CF6" },
-  { grade: 9, name: "9-sinf", title: "Jadidchilik va Mustamlakachilik", range: [41, 50], color: "#F59E0B" },
-  { grade: 10, name: "10-sinf", title: "Sovet Davri Tarixi", range: [51, 60], color: "#EC4899" },
-  { grade: 11, name: "11-sinf", title: "Mustaqil O'zbekiston", range: [61, 70], color: "#06B6D4" },
-];
-
-// 70 ta Level darslari
-const LEVELS_DATA = [
-  // ──── 5-SINF (1 - 10 Level) ────
-  { id: 1, grade: 5, title: "1 Level", topic: "Qadimgi davr va ilk odamlar" },
-  { id: 2, grade: 5, title: "2 Level", topic: "Zardushtiylik va Avesto" },
-  { id: 3, grade: 5, title: "3 Level", topic: "Qadimgi Baqtriya va Sug'd" },
-  { id: 4, grade: 5, title: "4 Level", topic: "Iskandar Zulqarnayn yurishi" },
-  { id: 5, grade: 5, title: "5 Level", topic: "Salavkiylar saltanati" },
-  { id: 6, grade: 5, title: "6 Level", topic: "Yunon-Baqtriya podsholigi" },
-  { id: 7, grade: 5, title: "7 Level", topic: "Qang' davlati madaniyati" },
-  { id: 8, grade: 5, title: "8 Level", topic: "Kushon imperiyasi yuksalishi" },
-  { id: 9, grade: 5, title: "9 Level", topic: "Eftaliylar va Qadimgi Xorazm" },
-  { id: 10, grade: 5, title: "10 Level", topic: "5-sinf Yakuniy Sinov", isExam: true },
-
-  // ──── 6-SINF (11 - 20 Level) ────
-  { id: 11, grade: 6, title: "11 Level", topic: "Buyuk Turk xoqonligi" },
-  { id: 12, grade: 6, title: "12 Level", topic: "Arab xalifaligi va Movarounnahr" },
-  { id: 13, grade: 6, title: "13 Level", topic: "Muqanna va Abu Muslim qo'zg'oloni" },
-  { id: 14, grade: 6, title: "14 Level", topic: "Tohiriylar va Somoniylar davlati" },
-  { id: 15, grade: 6, title: "15 Level", topic: "Qoraxoniylar va G'aznaviylar" },
-  { id: 16, grade: 6, title: "16 Level", topic: "Buyuk Saljuqiylar imperiyasi" },
-  { id: 17, grade: 6, title: "17 Level", topic: "Xorazmshohlar qudrati" },
-  { id: 18, grade: 6, title: "18 Level", topic: "Mo'g'ullar istilosi va Jaloliddin" },
-  { id: 19, grade: 6, title: "19 Level", topic: "Chig'atoy ulusi davri" },
-  { id: 20, grade: 6, title: "20 Level", topic: "6-sinf Yakuniy Sinov", isExam: true },
-
-  // ──── 7-SINF (21 - 30 Level) ────
-  { id: 21, grade: 7, title: "21 Level", topic: "Amir Temur davlatining yuksalishi" },
-  { id: 22, grade: 7, title: "22 Level", topic: "Sohibqironning harbiy yurishlari" },
-  { id: 23, grade: 7, title: "23 Level", topic: "Mirzo Ulug'bek va Samarqand akademiyasi" },
-  { id: 24, grade: 7, title: "24 Level", topic: "Alisher Navoiy va Hirot madaniyati" },
-  { id: 25, grade: 7, title: "25 Level", topic: "Zahiriddin Muhammad Bobur hayoti" },
-  { id: 26, grade: 7, title: "26 Level", topic: "Buyuk Boburiylar imperiyasi" },
-  { id: 27, grade: 7, title: "27 Level", topic: "Shayboniylar sulolasi hukmronligi" },
-  { id: 28, grade: 7, title: "28 Level", topic: "Ashtarxoniylar davri siyosati" },
-  { id: 29, grade: 7, title: "29 Level", topic: "O'rta asrlarda ilm-fan va me'morlik" },
-  { id: 30, grade: 7, title: "30 Level", topic: "7-sinf Yakuniy Sinov", isExam: true },
-
-  // ──── 8-SINF (31 - 40 Level) ────
-  { id: 31, grade: 8, title: "31 Level", topic: "Buxoro amirligi tashkil topishi" },
-  { id: 32, grade: 8, title: "32 Level", topic: "Xiva xonligi va Qo'ng'irotlar" },
-  { id: 33, grade: 8, title: "33 Level", topic: "Qo'qon xonligi yuksalishi" },
-  { id: 34, grade: 8, title: "34 Level", topic: "Xonliklararo munosabatlar va savdo" },
-  { id: 35, grade: 8, title: "35 Level", topic: "Madaniy hayot, adabiyot va san'at" },
-  { id: 36, grade: 8, title: "36 Level", topic: "Xonliklarda ijtimoiy tuzum" },
-  { id: 37, grade: 8, title: "37 Level", topic: "Tashqi aloqalar va elchiliklar" },
-  { id: 38, grade: 8, title: "38 Level", topic: "Xalq harakatlari va qo'zg'olonlar" },
-  { id: 39, grade: 8, title: "39 Level", topic: "XIX asr o'rtalarida madaniyat" },
-  { id: 40, grade: 8, title: "40 Level", topic: "8-sinf Yakuniy Sinov", isExam: true },
-
-  // ──── 9-SINF (41 - 50 Level) ────
-  { id: 41, grade: 9, title: "41 Level", topic: "Chor Rossiyasining bosqini" },
-  { id: 42, grade: 9, title: "42 Level", topic: "Turkiston general-gubernatorligi" },
-  { id: 43, grade: 9, title: "43 Level", topic: "1898 va 1916-yilgi qo'zg'olonlar" },
-  { id: 44, grade: 9, title: "44 Level", topic: "Jadidchilik harakatining tug'ilishi" },
-  { id: 45, grade: 9, title: "45 Level", topic: "Mahmudxo'ja Behbudiy va matbuot" },
-  { id: 46, grade: 9, title: "46 Level", topic: "Munavvarqori va usuli jadid" },
-  { id: 47, grade: 9, title: "47 Level", topic: "Turkiston Muxtoriyati (1917)" },
-  { id: 48, grade: 9, title: "48 Level", topic: "BXSR va XXSR respublikalari" },
-  { id: 49, grade: 9, title: "49 Level", topic: "Milliy istiqlol fidoyilari" },
-  { id: 50, grade: 9, title: "50 Level", topic: "9-sinf Yakuniy Sinov", isExam: true },
-
-  // ──── 10-SINF (51 - 60 Level) ────
-  { id: 51, grade: 10, title: "51 Level", topic: "Sovet hokimiyati o'rnatilishi" },
-  { id: 52, grade: 10, title: "52 Level", topic: "O'zbekiston SSR tashkil topishi (1924)" },
-  { id: 53, grade: 10, title: "53 Level", topic: "Qatag'on davri va qurbonlari (1937-1938)" },
-  { id: 54, grade: 10, title: "54 Level", topic: "Ikkinchi jahon urushida jasorat" },
-  { id: 55, grade: 10, title: "55 Level", topic: "Urushdan keyingi tiklanish yillari" },
-  { id: 56, grade: 10, title: "56 Level", topic: "Paxta yakkahokimligi va 'Paxta ishi'" },
-  { id: 57, grade: 10, title: "57 Level", topic: "Orol fojiasi va ekologiya" },
-  { id: 58, grade: 10, title: "58 Level", topic: "Milliy o'zlikni anglash jarayoni" },
-  { id: 59, grade: 10, title: "59 Level", topic: "Davlat tili to'g'risidagi qonun (1989)" },
-  { id: 60, grade: 10, title: "60 Level", topic: "10-sinf Yakuniy Sinov", isExam: true },
-
-  // ──── 11-SINF (61 - 70 Level) ────
-  { id: 61, grade: 11, title: "61 Level", topic: "O'zbekiston Mustaqilligi (1991)" },
-  { id: 62, grade: 11, title: "62 Level", topic: "Konstitutsiya va davlat ramzlari" },
-  { id: 63, grade: 11, title: "63 Level", topic: "Milliy valyuta - So'm joriy etilishi" },
-  { id: 64, grade: 11, title: "64 Level", topic: "BMT va xalqaro tashkilotlar" },
-  { id: 65, grade: 11, title: "65 Level", topic: "Buyuk Ipak yo'lining qayta tiklanishi" },
-  { id: 66, grade: 11, title: "66 Level", topic: "Ta'lim, sport va yoshlar siyosati" },
-  { id: 67, grade: 11, title: "67 Level", topic: "Madaniy meros va ziyorat turizmi" },
-  { id: 68, grade: 11, title: "68 Level", topic: "Yangi O'zbekiston taraqqiyot strategiyasi" },
-  { id: 69, grade: 11, title: "69 Level", topic: "Uchinchi Renessans poydevori" },
-  { id: 70, grade: 11, title: "70 Level", topic: "11-sinf Katta Bitiruv Imtihoni", isExam: true },
-];
 
 // SVG 4-burchakli yulduz (#FFD800)
 function GoldenStar({ size = 24, className = "" }) {
@@ -135,7 +43,7 @@ function CloudCluster({ className = "" }) {
 }
 
 // Qadimiy Sharqona Eshik / Darvoza (Class Gateway Portal)
-function ClassGatePortal({ gradeNumber, gradeTitle, isUnlocked = false }) {
+function ClassGatePortal({ gradeNumber, gradeTitle }) {
   return (
     <div className="relative my-8 min-[360px]:my-10 px-1 min-[360px]:px-2 flex flex-col items-center select-none w-full">
       {/* Nurlar va nur taralishi */}
@@ -204,21 +112,50 @@ function ClassGatePortal({ gradeNumber, gradeTitle, isUnlocked = false }) {
 export default function RoadmapPage({ onNavigate, onLevelOpenChange }) {
   const [toast, setToast] = useState(null);
   const [shakingId, setShakingId] = useState(null);
+  const [levels, setLevels] = useState(() => getCachedLevels());
+  const [levelsLoading, setLevelsLoading] = useState(() => (
+    !getCachedLevels() && !getPublicDataError()
+  ));
+  const [levelsError, setLevelsError] = useState(() => (getCachedLevels() ? '' : getPublicDataError()));
   const [selectedLevel, setSelectedLevel] = useState(null);
   const [readerLevel, setReaderLevel] = useState(null);
   const [readerError, setReaderError] = useState('');
 
-  // ─── Unlocked & Completed holatlar (localStorage dan) ───
-  const [unlockedIds, setUnlockedIds] = useState(() => getUnlocked());
-  const [completedIds, setCompletedIds] = useState(() => getCompleted());
+  const roadmapLevels = useMemo(
+    () => (levels || [])
+      .filter((level) => level.sinf >= 6 && level.sinf <= 11 && /^(?:[1-9]|1[0-2]) Level$/.test(level.nom))
+      .sort((first, second) => first.sinf - second.sinf
+        || Number.parseInt(first.nom, 10) - Number.parseInt(second.nom, 10))
+      .map((level, index) => ({ ...level, progressionId: index + 1 })),
+    [levels],
+  );
 
-  // Oldingi level nomini topish (qulflangan kartochkaga bosilganda toast uchun)
-  const getPrevLevelName = useCallback((levelId) => {
-    const prev = LEVELS_DATA.find((l) => l.id === levelId - 1);
-    return prev ? `${prev.title}: ${prev.topic}` : '1 Level';
+  useEffect(() => {
+    const syncCache = () => {
+      const cachedLevels = getCachedLevels();
+      if (cachedLevels) setLevels(cachedLevels);
+      setLevelsError(cachedLevels ? '' : getPublicDataError());
+      setLevelsLoading(!cachedLevels && !getPublicDataError());
+    };
+    const unsubscribe = subscribeToLessonData(syncCache);
+    if (!getCachedLevels() && !getPublicDataError()) {
+      getLevels().catch((error) => {
+        setLevelsError(error instanceof Error ? error.message : 'Levellarni yuklab bo‘lmadi.');
+        setLevelsLoading(false);
+      });
+    }
+    return unsubscribe;
   }, []);
 
-  const isUnlocked = useCallback((levelId) => unlockedIds.includes(levelId), [unlockedIds]);
+  // ─── Completed holati (localStorage dan); faqat birinchi level ochiq ───
+  const [completedIds, setCompletedIds] = useState(() => getCompleted());
+
+  const getPrevLevelName = useCallback((progressionId) => {
+    const previous = roadmapLevels.find((level) => level.progressionId === progressionId - 1);
+    return previous?.nom || roadmapLevels[0]?.nom || 'oldingi level';
+  }, [roadmapLevels]);
+
+  const isUnlocked = useCallback((levelId) => levelId === 1, []);
   const isCompleted = useCallback((levelId) => completedIds.includes(levelId), [completedIds]);
 
   const getProgress = useCallback((levelId) => {
@@ -228,16 +165,16 @@ export default function RoadmapPage({ onNavigate, onLevelOpenChange }) {
   }, [isCompleted, isUnlocked]);
 
   const handleCardClick = (level) => {
-    if (!isUnlocked(level.id)) {
+    if (!isUnlocked(level.progressionId)) {
       setShakingId(level.id);
-      setToast(`🔒 "${level.title}: ${level.topic}" qulflangan. Avval ${getPrevLevelName(level.id)} ni yakunlang!`);
+      setToast(`🔒 "${level.nom}" qulflangan. Avval ${getPrevLevelName(level.progressionId)} ni yakunlang!`);
       setTimeout(() => setShakingId(null), 500);
       setTimeout(() => setToast(null), 3000);
       return;
     }
 
     setSelectedLevel(level);
-    setReaderLevel(null);
+    setReaderLevel(getCachedLevel(level.id));
     setReaderError('');
     onLevelOpenChange?.(true);
   };
@@ -250,6 +187,8 @@ export default function RoadmapPage({ onNavigate, onLevelOpenChange }) {
 
   useEffect(() => {
     if (!selectedLevel) return undefined;
+    const cachedLevel = getCachedLevel(selectedLevel.id);
+    if (cachedLevel) return undefined;
     let active = true;
     getLevel(selectedLevel.id)
       .then((level) => {
@@ -261,34 +200,32 @@ export default function RoadmapPage({ onNavigate, onLevelOpenChange }) {
     return () => { active = false; };
   }, [selectedLevel]);
 
-  const handleFinish = useCallback((level) => {
-    // 1. Hozirgi levelni completed ga qo'shish
+  const retryLoadingLevels = () => {
+    setLevelsError('');
+    setLevelsLoading(true);
+    refreshPublicData().then((result) => {
+      if (result) {
+        setLevels(result);
+        setLevelsError('');
+      } else {
+        setLevelsError(getPublicDataError() || 'Levellarni yuklab bo‘lmadi.');
+      }
+      setLevelsLoading(false);
+    });
+  };
+
+  const handleFinish = useCallback(() => {
+    const progressionId = selectedLevel?.progressionId;
+    if (!progressionId) return;
+
     const newCompleted = [...completedIds];
-    if (!newCompleted.includes(level.id)) newCompleted.push(level.id);
+    if (!newCompleted.includes(progressionId)) newCompleted.push(progressionId);
     setCompletedIds(newCompleted);
     saveCompleted(newCompleted);
 
-    // 2. Keyingi leverni ochish
-    const nextId = level.id + 1;
-    if (nextId <= 70) {
-      const newUnlocked = [...unlockedIds];
-      if (!newUnlocked.includes(nextId)) newUnlocked.push(nextId);
-      setUnlockedIds(newUnlocked);
-      saveUnlocked(newUnlocked);
-
-      // Toast: level ochildi
-      const nextLevel = LEVELS_DATA.find((l) => l.id === nextId);
-      const nextName = nextLevel ? nextLevel.title : `${nextId} Level`;
-      setTimeout(() => {
-        setToast(`🔓 ${nextName} ochildi`);
-        setTimeout(() => setToast(null), 3000);
-      }, 200);
-    }
-
-    // 3. Readerni yopish
     setSelectedLevel(null);
     onLevelOpenChange?.(false);
-  }, [completedIds, unlockedIds, onLevelOpenChange]);
+  }, [completedIds, onLevelOpenChange, selectedLevel]);
 
   if (selectedLevel) {
     if (readerError) {
@@ -317,6 +254,21 @@ export default function RoadmapPage({ onNavigate, onLevelOpenChange }) {
         onFinish={handleFinish}
       />
     );
+  }
+
+  if (levelsLoading) {
+    return <div className="flex min-h-screen items-center justify-center bg-white text-sm text-[#6F6A62]">Yuklanmoqda...</div>;
+  }
+  if (levelsError) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-white px-5 text-center text-sm text-red-700">
+        <p role="alert">{levelsError}</p>
+        <button type="button" onClick={retryLoadingLevels} className="rounded-xl bg-[#E8B84B] px-4 py-2 font-semibold text-[#2A2A2A]">Qayta urinish</button>
+      </div>
+    );
+  }
+  if (roadmapLevels.length === 0) {
+    return <div className="flex min-h-screen items-center justify-center bg-white px-5 text-center text-sm text-[#6F6A62]">Hozircha levellar mavjud emas.</div>;
   }
 
   return (
@@ -392,12 +344,12 @@ export default function RoadmapPage({ onNavigate, onLevelOpenChange }) {
               <div className="flex items-center justify-center gap-1.5 min-[360px]:gap-2">
                 <Sparkles className="w-3.5 h-3.5 min-[360px]:w-4 min-[360px]:h-4 text-[#FFD800] shrink-0" />
                 <h2 className="text-[14px] min-[360px]:text-[16px] sm:text-[17px] font-extrabold text-white tracking-wide uppercase drop-shadow">
-                  5-sinf • Qadimgi Dunyo
+                    {roadmapLevels[0].sinf}–{roadmapLevels[roadmapLevels.length - 1].sinf}-sinf
                 </h2>
                 <Sparkles className="w-3.5 h-3.5 min-[360px]:w-4 min-[360px]:h-4 text-[#FFD800] shrink-0" />
               </div>
               <p className="text-[10.5px] min-[360px]:text-[11px] font-medium text-white/75 mt-0.5">
-                1-bosqich: 1 Level — 10 Level
+                {roadmapLevels.length} ta level
               </p>
             </div>
           </div>
@@ -414,17 +366,16 @@ export default function RoadmapPage({ onNavigate, onLevelOpenChange }) {
             <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[7px] border-t-[#222634] ml-6 min-[360px]:ml-8 -mt-0.5" />
           </div>
 
-          {/* 70 ta Level darslarining zigzag yo'li */}
+          {/* Bazadagi levellarning zigzag yo‘li */}
           <div className="space-y-10 min-[360px]:space-y-12 relative pt-2">
-            {LEVELS_DATA.map((level, index) => {
+            {roadmapLevels.map((level, index) => {
               const isLeft = index % 2 === 0;
               const isShaking = shakingId === level.id;
-              const isOpen = isUnlocked(level.id);
-              const progress = getProgress(level.id);
-              const nextLevel = LEVELS_DATA[index + 1];
+              const isOpen = isUnlocked(level.progressionId);
+              const progress = getProgress(level.progressionId);
+              const nextLevel = roadmapLevels[index + 1];
 
-              const isEndOfGrade = level.id % 10 === 0 && level.id < 70;
-              const nextGradeConfig = isEndOfGrade ? GRADES_CONFIG.find(g => g.grade === (level.grade + 1)) : null;
+              const isEndOfGrade = Boolean(nextLevel && nextLevel.sinf !== level.sinf);
 
               return (
                 <div key={level.id} className="relative">
@@ -435,8 +386,7 @@ export default function RoadmapPage({ onNavigate, onLevelOpenChange }) {
                     {/* 3D Duolingo uslubidagi Karta */}
                     <div
                       onClick={() => handleCardClick(level)}
-                      className={`relative w-[138px] h-[138px] min-[360px]:w-[148px] min-[360px]:h-[148px] min-[390px]:w-[155px] min-[390px]:h-[155px] sm:w-[160px] sm:h-[160px] rounded-[22px] min-[360px]:rounded-[26px] p-3 min-[360px]:p-4 flex flex-col justify-between cursor-pointer transition-all duration-150 select-none group shrink-0 ${isShaking ? 'animate-shake' : ''
-                        } ${isOpen
+                      className={`relative w-[138px] h-[138px] min-[360px]:w-[148px] min-[360px]:h-[148px] min-[390px]:w-[155px] min-[390px]:h-[155px] sm:w-[160px] sm:h-[160px] rounded-[22px] min-[360px]:rounded-[26px] p-3 min-[360px]:p-4 flex flex-col justify-between cursor-pointer transition-all duration-150 select-none group shrink-0 ${isShaking ? 'animate-shake' : ''} ${isOpen
                           ? 'bg-gradient-to-b from-[#D4921A] to-[#B8760A] border-b-[6px] min-[360px]:border-b-[8px] border-[#8A5507] shadow-[0_12px_28px_rgba(180,110,10,0.5)] active:translate-y-1 active:border-b-[3px]'
                           : 'bg-[#1A1C24] border-b-[6px] min-[360px]:border-b-[8px] border-[#111318] shadow-[0_8px_18px_rgba(0,0,0,0.7)] active:translate-y-1 active:border-b-[3px] hover:bg-[#1E2028]'
                         }`}
@@ -461,7 +411,7 @@ export default function RoadmapPage({ onNavigate, onLevelOpenChange }) {
                       {/* Pastki qism: Level raqami */}
                       <div>
                         <h3 className="text-[17px] min-[360px]:text-[19px] font-extrabold text-white leading-tight">
-                          {level.title}
+                          {level.nom}
                         </h3>
                       </div>
 
@@ -535,7 +485,7 @@ export default function RoadmapPage({ onNavigate, onLevelOpenChange }) {
                   )}
 
                   {/* ── 10, 20, 30, 40, 50, 60 LEVELDAN KEYIN YO'L USTIDAGI ESHIK / DARVOZA (GATE) ── */}
-                  {isEndOfGrade && nextGradeConfig && (
+                  {isEndOfGrade && nextLevel && (
                     <div className="my-3 min-[360px]:my-4 w-full">
                       {/* Kartadan eshikka tushuvchi sariq yo'l */}
                       <div className="w-full h-9 min-[360px]:h-10 relative pointer-events-none flex justify-center">
@@ -555,9 +505,8 @@ export default function RoadmapPage({ onNavigate, onLevelOpenChange }) {
 
                       {/* Sharqona Kirish Eshigi (Portal) */}
                       <ClassGatePortal
-                        gradeNumber={nextGradeConfig.grade}
-                        gradeTitle={nextGradeConfig.title}
-                        isUnlocked={false}
+                        gradeNumber={nextLevel.sinf}
+                        gradeTitle={nextLevel.nom}
                       />
 
                       {/* Eshikdan keyingi 1-kartaga ulovchi sariq yo'l */}
@@ -583,7 +532,7 @@ export default function RoadmapPage({ onNavigate, onLevelOpenChange }) {
             })}
           </div>
 
-          {/* ─── 70-LEVELDAN KEYINGI YAKUNIY BITIRUV QASRI (GRAND FINALE PORTAL) ─── */}
+          {/* Yakuniy bosqich bezagi */}
           <div className="mt-14 min-[360px]:mt-16 pt-7 min-[360px]:pt-8 pb-10 min-[360px]:pb-12 text-center border-t-2 border-[#D4921A]/40 flex flex-col items-center px-2">
             <div className="w-16 h-16 min-[360px]:w-20 min-[360px]:h-20 rounded-2xl min-[360px]:rounded-3xl bg-gradient-to-tr from-[#D4921A] to-[#FFE066] p-0.5 shadow-[0_0_30px_rgba(212,146,26,0.6)] mb-3 min-[360px]:mb-4 animate-pulse">
               <div className="w-full h-full bg-[#121622] rounded-[18px] min-[360px]:rounded-[22px] flex items-center justify-center text-3xl min-[360px]:text-4xl">
@@ -594,7 +543,7 @@ export default function RoadmapPage({ onNavigate, onLevelOpenChange }) {
               Katta Tarixiy G'alaba & Sertifikat
             </h4>
             <p className="text-[12px] min-[360px]:text-[13px] text-white/70 max-w-[290px] min-[360px]:max-w-xs leading-relaxed">
-              70 ta Levelni to'liq yakunlab, 5-sinfdan 11-sinfgacha bo'lgan barcha tarixiy bilimlarni mukammal egallang va maxsus Sertifikatga ega bo'ling!
+              {roadmapLevels.length} ta levelni yakunlab, tarixiy bilimlaringizni mustahkamlang va maxsus sertifikatga ega bo'ling!
             </p>
           </div>
 

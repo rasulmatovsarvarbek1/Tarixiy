@@ -6,6 +6,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ArrowLeft,
   Settings,
@@ -25,14 +26,13 @@ import {
   removeSaved,
   getSettings,
   saveSettings,
-  DEFAULT_SETTINGS,
 } from '../lib/readerStorage';
 
 /* ═══════════════════════════════════════ CONSTANTS ═══════════════════════════════════════ */
 
 const PAD_X = 24;
-const PAD_TOP = 28;
-const PAD_BOTTOM = 76; // Pastdagi panel uchun xavfsiz masofa
+const PAD_TOP = 68;
+const PAD_BOTTOM = 92;
 const SAFETY = 2;
 
 const ORANGE = '#E8650A';
@@ -80,7 +80,7 @@ function normalizeContent(content) {
 }
 
 /** Dars ma'lumotlarini unitlarga (rasm va matn paragraflari) ajratish */
-function prepareLessonData(lesson, lessonIndex) {
+function prepareLessonData(lesson) {
   let blocks = lesson?.bloklar;
   if (!blocks || !Array.isArray(blocks)) {
     if (lesson?.content) {
@@ -102,18 +102,28 @@ function prepareLessonData(lesson, lessonIndex) {
           type: 'image',
           url,
           izoh: b.izoh ? String(b.izoh).trim() : '',
+          joylashuv: ['yuqori', 'orta', 'past'].includes(b.joylashuv) ? b.joylashuv : 'yuqori',
           blockIndex: bi,
         });
       }
     } else if (b.tur === 'matn') {
       const paragraphs = normalizeContent(b.qiymat);
       paragraphs.forEach((p) => {
-        const words = p.split(/\s+/).filter(Boolean).map((w, wi) => ({
-          word: w,
-          paraIndex: paraCounter,
-          wordInPara: wi,
-          globalWordIndex: gi++,
-        }));
+        const segments = p.match(/\*\*[^*]+\*\*|\*[^*]+\*|[^*]+/g) || [p];
+        let wordInPara = 0;
+        const words = segments.flatMap((segment) => {
+          const bold = segment.startsWith('**') && segment.endsWith('**');
+          const italic = !bold && segment.startsWith('*') && segment.endsWith('*');
+          const content = bold ? segment.slice(2, -2) : italic ? segment.slice(1, -1) : segment;
+          return content.split(/\s+/).filter(Boolean).map((word) => ({
+            word,
+            bold,
+            italic,
+            paraIndex: paraCounter,
+            wordInPara: wordInPara++,
+            globalWordIndex: gi++,
+          }));
+        });
         if (words.length > 0) {
           units.push({
             type: 'paragraph',
@@ -129,6 +139,57 @@ function prepareLessonData(lesson, lessonIndex) {
   return { lesson, units, totalWords: gi };
 }
 
+function buildPageFlow(elements) {
+  const paragraphs = elements.filter((element) => element.type === 'paragraph');
+  const images = elements.filter((element) => element.type === 'image');
+  const imageEvents = images
+    .map((image, index) => ({
+      image,
+      index,
+      position: image.anchorWordIndex ?? Number.MAX_SAFE_INTEGER,
+    }))
+    .sort((first, second) => first.position - second.position || first.index - second.index);
+
+  const flow = [];
+  let eventIndex = 0;
+
+  const pushImagesAtCurrentPosition = (wordPosition) => {
+    while (eventIndex < imageEvents.length && imageEvents[eventIndex].position <= wordPosition) {
+      flow.push(imageEvents[eventIndex].image);
+      eventIndex += 1;
+    }
+  };
+
+  paragraphs.forEach((paragraph) => {
+    let wordOffset = 0;
+    while (wordOffset < paragraph.words.length) {
+      const wordPosition = paragraph.words[wordOffset].globalWordIndex;
+      pushImagesAtCurrentPosition(wordPosition);
+      const nextImagePosition = imageEvents[eventIndex]?.position;
+      const paragraphEnd = paragraph.words[paragraph.words.length - 1].globalWordIndex + 1;
+      const segmentEnd = nextImagePosition !== undefined && nextImagePosition < paragraphEnd
+        ? nextImagePosition
+        : paragraphEnd;
+      const segmentLength = segmentEnd - wordPosition;
+
+      if (segmentLength <= 0) {
+        pushImagesAtCurrentPosition(wordPosition);
+        continue;
+      }
+
+      flow.push({
+        ...paragraph,
+        cont: paragraph.cont || wordOffset > 0,
+        words: paragraph.words.slice(wordOffset, wordOffset + segmentLength),
+      });
+      wordOffset += segmentLength;
+    }
+  });
+
+  pushImagesAtCurrentPosition(Number.MAX_SAFE_INTEGER);
+  return flow;
+}
+
 /** Sahifalash: yashirin o'lchov elementi yordamida matn va rasmlarni sahifalarga bo'lish */
 function paginateLessonUnits(lessonData, box, maxH, maxW, imagesStatus) {
   const { units } = lessonData;
@@ -138,19 +199,20 @@ function paginateLessonUnits(lessonData, box, maxH, maxW, imagesStatus) {
   const pageH = maxH + PAD_TOP + PAD_BOTTOM + SAFETY;
   const maxImgH = Math.min(Math.floor(pageH * 0.4), maxH - 40);
 
-  const createMeasureImageElement = (u) => {
+  const createMeasureImageElement = (u, availableWidth) => {
     const status = imagesStatus[u.url];
     if (status?.error) return null;
 
     let renderedH = maxImgH;
     if (status?.width && status?.height) {
-      const aspectH = Math.round(maxW * (status.height / status.width));
+      const aspectH = Math.round(availableWidth * (status.height / status.width));
       renderedH = Math.min(maxImgH, aspectH);
     }
 
     const wrap = document.createElement('div');
-    wrap.style.width = '100%';
-    wrap.style.margin = '8px 0 12px';
+    wrap.style.float = 'right';
+    wrap.style.width = '36%';
+    wrap.style.margin = '8px 0 8px 12px';
     wrap.style.boxSizing = 'border-box';
     wrap.style.textAlign = 'center';
 
@@ -174,18 +236,28 @@ function paginateLessonUnits(lessonData, box, maxH, maxW, imagesStatus) {
     const p = document.createElement('p');
     p.style.margin = '0';
     p.style.textIndent = cont ? '0' : '1.5em';
-    p.textContent = words.map((w) => w.word).join(' ');
+    words.forEach((word, index) => {
+      if (index > 0) p.appendChild(document.createTextNode(' '));
+      const span = document.createElement('span');
+      span.textContent = word.word;
+      if (word.bold) span.style.fontWeight = '700';
+      if (word.italic) span.style.fontStyle = 'italic';
+      p.appendChild(span);
+    });
     return p;
   };
 
   const testFit = (elements) => {
     box.textContent = '';
-    for (const el of elements) {
+    for (const el of buildPageFlow(elements)) {
       if (el.type === 'image') {
-        const res = createMeasureImageElement(el);
+        const availableWidth = maxW * 0.36;
+        const res = createMeasureImageElement(el, availableWidth);
         if (res) box.appendChild(res.wrap);
       } else if (el.type === 'paragraph') {
-        box.appendChild(createMeasureParagraphElement(el.words, el.cont));
+        const paragraph = createMeasureParagraphElement(el.words, el.cont);
+        paragraph.style.marginBottom = '4px';
+        box.appendChild(paragraph);
       }
     }
     return box.offsetHeight <= maxH;
@@ -211,112 +283,110 @@ function paginateLessonUnits(lessonData, box, maxH, maxW, imagesStatus) {
     };
   };
 
+  const imageCount = units.filter((unit) => unit.type === 'image').length;
+  const allTextWords = units
+    .filter((unit) => unit.type === 'paragraph')
+    .flatMap((unit) => unit.words);
+  let pageTextCapacity = allTextWords.length;
+  if (pageTextCapacity > 0 && !testFit([{ type: 'paragraph', words: allTextWords, cont: false }])) {
+    let low = 1;
+    let high = pageTextCapacity;
+    while (low < high) {
+      const middle = Math.ceil((low + high) / 2);
+      if (testFit([{ type: 'paragraph', words: allTextWords.slice(0, middle), cont: false }])) low = middle;
+      else high = middle - 1;
+    }
+    pageTextCapacity = low;
+  }
+  const images = units
+    .filter((unit) => unit.type === 'image' && !imagesStatus[unit.url]?.error)
+    .map((unit, index) => {
+      const imageMaxH = Math.min(
+        Math.floor((pageH * 0.4) / Math.max(1, imageCount)),
+        maxH - 40,
+      );
+      let height = imageMaxH;
+      const status = imagesStatus[unit.url];
+      if (status?.width && status?.height) {
+        height = Math.min(imageMaxH, Math.round(maxW * 0.36 * (status.height / status.width)));
+      }
+      return {
+        type: 'image',
+        url: unit.url,
+        izoh: unit.izoh,
+        joylashuv: unit.joylashuv,
+        anchorWordIndex: unit.joylashuv === 'past'
+          ? Math.floor(pageTextCapacity * 0.55)
+          : unit.joylashuv === 'orta'
+            ? Math.floor(pageTextCapacity * 0.4)
+            : 0,
+        order: index,
+        maxImgH: imageMaxH,
+        height,
+      };
+    });
   const pages = [];
-  let currentPageElements = [];
+  let currentPageText = [];
+  let currentPageImages = images;
 
-  for (let ui = 0; ui < units.length; ui++) {
-    const u = units[ui];
+  const finishCurrentPage = () => {
+    const elements = [...currentPageImages, ...currentPageText];
+    if (elements.length > 0) pages.push(finalizePage(elements));
+    currentPageImages = [];
+    currentPageText = [];
+  };
 
-    if (u.type === 'image') {
-      const status = imagesStatus[u.url];
-      if (status?.error) {
-        // Rasm yuklanmasa blok umuman ko'rinmasin, matn o'z holicha davom etadi
+  for (const unit of units) {
+    if (unit.type !== 'paragraph') continue;
+    const words = unit.words;
+    let wordPointer = 0;
+
+    while (wordPointer < words.length) {
+      const remainingWords = words.slice(wordPointer);
+      const cont = wordPointer > 0;
+      const fitsWords = (count) => testFit([
+        ...currentPageImages,
+        ...currentPageText,
+        { type: 'paragraph', words: remainingWords.slice(0, count), cont },
+      ]);
+
+      if (!fitsWords(1)) {
+        if (currentPageText.length > 0) {
+          finishCurrentPage();
+          continue;
+        }
+        if (currentPageImages.length > 0) {
+          finishCurrentPage();
+          continue;
+        }
+        currentPageText.push({ type: 'paragraph', words: [remainingWords[0]], cont });
+        wordPointer += 1;
         continue;
       }
 
-      let renderedH = maxImgH;
-      if (status?.width && status?.height) {
-        renderedH = Math.min(maxImgH, Math.round(maxW * (status.height / status.width)));
+      let fittingCount = remainingWords.length;
+      if (!fitsWords(fittingCount)) {
+        let low = 1;
+        let high = fittingCount;
+        while (low < high) {
+          const middle = Math.ceil((low + high) / 2);
+          if (fitsWords(middle)) low = middle;
+          else high = middle - 1;
+        }
+        fittingCount = low;
       }
-      const imgItem = {
-        type: 'image',
-        url: u.url,
-        izoh: u.izoh,
-        maxImgH,
-        height: renderedH,
-      };
 
-      // Rasm hozirgi sahifaga sig'adimi?
-      if (testFit([...currentPageElements, imgItem])) {
-        currentPageElements.push(imgItem);
-      } else {
-        // Rasm sahifada qolgan joyga sig'masa, keyingi sahifaga o'tadi
-        if (currentPageElements.length > 0) {
-          pages.push(finalizePage(currentPageElements));
-          currentPageElements = [];
-        }
-        currentPageElements.push(imgItem);
-      }
-    } else if (u.type === 'paragraph') {
-      const words = u.words;
-      let wordPointer = 0;
-
-      while (wordPointer < words.length) {
-        const remWords = words.slice(wordPointer);
-        const cont = wordPointer > 0;
-
-        const canFitOne = testFit([
-          ...currentPageElements,
-          { type: 'paragraph', words: [remWords[0]], cont },
-        ]);
-
-        if (!canFitOne) {
-          if (currentPageElements.length > 0) {
-            pages.push(finalizePage(currentPageElements));
-            currentPageElements = [];
-            continue;
-          } else {
-            currentPageElements.push({
-              type: 'paragraph',
-              words: [remWords[0]],
-              cont,
-            });
-            wordPointer++;
-            continue;
-          }
-        }
-
-        // Qancha so'z sig'ishini binary search yordamida aniqlash
-        let lo = 1;
-        let hi = remWords.length;
-
-        if (testFit([...currentPageElements, { type: 'paragraph', words: remWords, cont }])) {
-          lo = hi;
-        } else {
-          while (lo < hi) {
-            const mid = Math.ceil((lo + hi) / 2);
-            if (
-              testFit([
-                ...currentPageElements,
-                { type: 'paragraph', words: remWords.slice(0, mid), cont },
-              ])
-            ) {
-              lo = mid;
-            } else {
-              hi = mid - 1;
-            }
-          }
-        }
-
-        currentPageElements.push({
-          type: 'paragraph',
-          words: remWords.slice(0, lo),
-          cont,
-        });
-        wordPointer += lo;
-
-        if (wordPointer < words.length) {
-          pages.push(finalizePage(currentPageElements));
-          currentPageElements = [];
-        }
-      }
+      currentPageText.push({
+        type: 'paragraph',
+        words: remainingWords.slice(0, fittingCount),
+        cont,
+      });
+      wordPointer += fittingCount;
+      if (wordPointer < words.length) finishCurrentPage();
     }
   }
 
-  if (currentPageElements.length > 0) {
-    pages.push(finalizePage(currentPageElements));
-    currentPageElements = [];
-  }
+  finishCurrentPage();
 
   box.textContent = '';
   return pages;
@@ -914,7 +984,7 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
 
   // ─── Data prep: har bir darsni unitlarga ajratish ───
   const lessonsData = useMemo(() => {
-    return darslar.map((lesson, idx) => prepareLessonData(lesson, idx));
+    return darslar.map((lesson) => prepareLessonData(lesson));
   }, [darslar]);
 
   // ─── EKRANLAR: har darsda [muqova + sahifalar] ───
@@ -938,9 +1008,10 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
   const textStyle = useMemo(() => ({
     fontFamily: fontObj.family,
     fontSize: settings.fontSize,
-    lineHeight: 1.6,
+    lineHeight: 1.4,
     color: theme.text,
     textAlign: 'justify',
+    textRendering: 'optimizeLegibility',
     hyphens: 'auto',
     WebkitHyphens: 'auto',
     overflowWrap: 'break-word',
@@ -967,13 +1038,15 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
     Object.assign(box.style, {
       fontFamily: fontObj.family,
       fontSize: settings.fontSize + 'px',
-      lineHeight: '1.6',
+      lineHeight: '1.4',
       textAlign: 'justify',
+      textRendering: 'optimizeLegibility',
       hyphens: 'auto',
       WebkitHyphens: 'auto',
       overflowWrap: 'break-word',
       wordBreak: 'normal',
       width: `${w - PAD_X * 2}px`,
+      display: 'flow-root',
     });
 
     const maxH = h - PAD_TOP - PAD_BOTTOM - SAFETY;
@@ -1186,7 +1259,7 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
     return sel && !sel.isCollapsed && sel.toString().trim().length > 0;
   }, []);
 
-  const handleTap = useCallback((clientX) => {
+  const handleTap = useCallback(() => {
     if (hasSelection()) return;
 
     if (panelVisible) {
@@ -1195,15 +1268,8 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
       return;
     }
 
-    const w = window.innerWidth;
-    if (clientX < w * 0.22) {
-      goPrev();
-    } else if (clientX > w * 0.78) {
-      goNext();
-    } else {
-      setPanelVisible(true);
-    }
-  }, [hasSelection, panelVisible, goPrev, goNext]);
+    setPanelVisible(true);
+  }, [hasSelection, panelVisible]);
 
   const onTouchStart = (e) => {
     if (hasSelection()) return;
@@ -1229,14 +1295,14 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
 
     if (elapsed < 300 && Math.abs(dx) < 15 && Math.abs(dy) < 15) {
       lastTouchTimeRef.current = Date.now();
-      handleTap(t.clientX);
+      handleTap();
     }
   };
 
-  const onClick = (e) => {
+  const onClick = () => {
     if (hasSelection()) return;
     if (Date.now() - lastTouchTimeRef.current < 450) return;
-    handleTap(e.clientX);
+    handleTap();
   };
 
   // ─── Saved sheet dan navigatsiya ───
@@ -1252,103 +1318,122 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
   const renderPageElements = (elements, lessonIndex) => {
     const lessonSaved = allSaved.filter((s) => s.lessonIndex === lessonIndex);
 
-    return elements.map((el, elIdx) => {
-      if (el.type === 'image') {
-        const status = imagesStatus[el.url];
-        if (status?.error) return null;
-
-        return (
-          <div
-            key={`img-${elIdx}`}
-            style={{
-              width: '100%',
-              margin: '8px 0 12px',
-              textAlign: 'center',
-              boxSizing: 'border-box',
-            }}
-          >
-            <img
-              src={el.url}
-              alt={el.izoh || ''}
-              onError={() => {
-                setImagesStatus((prev) => ({
-                  ...prev,
-                  [el.url]: { loaded: false, error: true },
-                }));
-              }}
-              style={{
-                width: '100%',
-                maxHeight: `${el.maxImgH}px`,
-                height: 'auto',
-                objectFit: 'contain',
-                borderRadius: 8,
-                display: 'block',
-                margin: '0 auto',
-              }}
-            />
-            {el.izoh && (
-              <div
+    const renderParagraph = (el, elIdx) => (
+      <p
+        key={`p-${elIdx}`}
+        style={{
+          ...textStyle,
+          textIndent: el.cont ? 0 : '1.5em',
+          margin: 0,
+          marginBottom: 4,
+          textAlign: 'justify',
+        }}
+      >
+        {el.words.map((w, wi) => {
+          const isHighlighted = lessonSaved.some(
+            (s) => w.globalWordIndex >= s.startWord && w.globalWordIndex <= s.endWord
+          );
+          return (
+            <React.Fragment key={wi}>
+              {wi > 0 && ' '}
+              <span
+                data-w={w.globalWordIndex}
                 style={{
-                  fontFamily: SANS,
-                  fontSize: 12,
-                  opacity: 0.65,
-                  marginTop: 6,
-                  textAlign: 'center',
-                  lineHeight: 1.4,
-                  color: theme.text,
+                  ...(isHighlighted ? { background: 'rgba(255, 224, 102, 0.6)', borderRadius: 2 } : {}),
+                  ...(w.bold ? { fontWeight: 700 } : {}),
+                  ...(w.italic ? { fontStyle: 'italic' } : {}),
                 }}
               >
-                {el.izoh}
-              </div>
-            )}
-          </div>
-        );
-      }
+                {w.word}
+              </span>
+            </React.Fragment>
+          );
+        })}
+      </p>
+    );
 
-      if (el.type === 'paragraph') {
-        return (
-          <p
-            key={`p-${elIdx}`}
-            style={{
-              ...textStyle,
-              textIndent: el.cont ? 0 : '1.5em',
+    const renderImage = (el, elIdx) => {
+      const status = imagesStatus[el.url];
+      if (status?.error) return null;
+
+      return (
+        <div
+          key={`img-${elIdx}`}
+          style={{
+            float: 'right',
+            width: '36%',
+            margin: '8px 0 8px 12px',
+            textAlign: 'center',
+            boxSizing: 'border-box',
+          }}
+        >
+          <img
+            src={el.url}
+            alt={el.izoh || ''}
+            onError={() => {
+              setImagesStatus((prev) => ({
+                ...prev,
+                [el.url]: { loaded: false, error: true },
+              }));
             }}
-          >
-            {el.words.map((w, wi) => {
-              const isHighlighted = lessonSaved.some(
-                (s) => w.globalWordIndex >= s.startWord && w.globalWordIndex <= s.endWord
-              );
-              return (
-                <React.Fragment key={wi}>
-                  {wi > 0 && ' '}
-                  <span
-                    data-w={w.globalWordIndex}
-                    style={isHighlighted ? { background: 'rgba(255, 224, 102, 0.6)', borderRadius: 2 } : undefined}
-                  >
-                    {w.word}
-                  </span>
-                </React.Fragment>
-              );
-            })}
-          </p>
-        );
-      }
+            style={{
+              width: '100%',
+              maxHeight: `${el.maxImgH}px`,
+              height: 'auto',
+              objectFit: 'contain',
+              borderRadius: 8,
+              display: 'block',
+              margin: '0 auto',
+            }}
+          />
+          {el.izoh && (
+            <div
+              style={{
+                fontFamily: SANS,
+                fontSize: 12,
+                opacity: 0.65,
+                marginTop: 6,
+                textAlign: 'center',
+                lineHeight: 1.4,
+                color: theme.text,
+              }}
+            >
+              {el.izoh}
+            </div>
+          )}
+        </div>
+      );
+    };
 
+    return buildPageFlow(elements).map((el, elIdx) => {
+      if (el.type === 'image') return renderImage(el, elIdx);
+      if (el.type === 'paragraph') return renderParagraph(el, elIdx);
       return null;
     });
   };
 
-  return (
+  return createPortal((
     <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 999999,
+        background: 'rgba(0, 0, 0, 0.45)',
+      }}
+    >
+      <div
       lang="uz"
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
       onClick={onClick}
       style={{
         position: 'fixed',
-        inset: 0,
+        top: 0,
+        bottom: 0,
+        left: '50%',
+        transform: 'translateX(-50%)',
         zIndex: 999999,
-        width: '100%',
+        width: 'min(100vw, 430px)',
         height: '100dvh',
         boxSizing: 'border-box',
         overflow: 'hidden',
@@ -1535,7 +1620,7 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
           position: 'fixed',
           bottom: 12,
           left: '50%',
-          transform: 'translateX(-50%)',
+          transform: panelVisible ? 'translate(-50%, 0)' : 'translate(-50%, calc(100% + 16px))',
           width: 'calc(100% - 20px)',
           maxWidth: 390,
           zIndex: 1000000,
@@ -1551,7 +1636,9 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
           justifyContent: 'space-between',
           gap: 12,
           boxSizing: 'border-box',
-          pointerEvents: 'auto',
+          opacity: panelVisible ? 1 : 0,
+          pointerEvents: panelVisible ? 'auto' : 'none',
+          transition: 'transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease',
         }}
       >
         <button
@@ -1614,5 +1701,6 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
         />
       )}
     </div>
-  );
+    </div>
+  ), document.body);
 }

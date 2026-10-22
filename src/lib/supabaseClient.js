@@ -1,13 +1,6 @@
-import { createClient } from '@supabase/supabase-js';
+import { isSupabaseConfigured, supabase } from './supabase';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://mock-tarixiy.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'mock-anon-key';
-
-export const isSupabaseConfigured = Boolean(
-  import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY
-);
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export { isSupabaseConfigured, supabase };
 
 /**
  * Ro'yxatdan o'tish yordamchi funksiyasi

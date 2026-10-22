@@ -16,7 +16,9 @@ export default function App() {
 }
 
 function MainApp() {
-  const [appState, setAppState] = useState('register');
+  const [appState, setAppState] = useState(() => (
+    window.location.pathname === '/home' ? 'app' : 'register'
+  ));
   const [activeTab, setActiveTab] = useState('home');
   const [homeSubPage, setHomeSubPage] = useState(null);
   const [profileSubPage, setProfileSubPage] = useState('main');
