@@ -1,4 +1,4 @@
-import { requireSupabase } from './supabase';
+import { requireSupabase, supabase } from './supabase';
 
 const LESSON_COLUMNS = 'id,level_id,tartib,fan,sarlavha,muqova,bloklar,holat,yangilangan';
 const MISSING_ROW_ERROR = 'Saqlanmadi: ruxsat yo‘q yoki dars topilmadi';
@@ -11,6 +11,10 @@ let adminLevels = null;
 let publicLoadPromise = null;
 let adminLoadPromise = null;
 let adminRefreshPending = false;
+let adminRefreshTimer = null;
+let adminInitialLoadAttempted = false;
+let adminSessionPreloadPromise = null;
+let adminSessionPreloadAttempted = false;
 let adminCacheGeneration = 0;
 let publicDataError = '';
 let adminDataError = '';
@@ -105,7 +109,11 @@ function removeCachedLesson(levelId, lessonId) {
 }
 
 function scheduleAdminRefresh() {
-  if (adminLevels) void refreshAdminData();
+  if (!adminLevels || adminRefreshTimer) return;
+  adminRefreshTimer = setTimeout(() => {
+    adminRefreshTimer = null;
+    void refreshAdminData();
+  }, 100);
 }
 
 export function subscribeToLessonData(listener) {
@@ -186,6 +194,11 @@ export function preloadPublicData() {
 }
 
 export function refreshAdminData() {
+  if (!adminLevels) adminInitialLoadAttempted = true;
+  if (adminRefreshTimer) {
+    clearTimeout(adminRefreshTimer);
+    adminRefreshTimer = null;
+  }
   if (adminLoadPromise) {
     adminRefreshPending = true;
     return adminLoadPromise;
@@ -228,15 +241,61 @@ export function refreshAdminData() {
 export function loadAdminData() {
   if (adminLevels) return Promise.resolve(adminLevels);
   if (adminLoadPromise) return adminLoadPromise;
+  if (adminInitialLoadAttempted) {
+    return Promise.reject(new Error(adminDataError || 'Admin ma’lumotlarini yuklab bo‘lmadi.'));
+  }
+  adminInitialLoadAttempted = true;
   return refreshAdminData();
+}
+
+export function preloadAdminDataForSession() {
+  if (adminLevels) return Promise.resolve(adminLevels);
+  if (adminSessionPreloadPromise) return adminSessionPreloadPromise;
+  if (adminSessionPreloadAttempted || !supabase) return Promise.resolve(null);
+
+  adminSessionPreloadAttempted = true;
+  const generation = adminCacheGeneration;
+  adminSessionPreloadPromise = (async () => {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) throw error;
+    if (generation !== adminCacheGeneration) return null;
+    const userId = data.session?.user?.id;
+    if (!userId) return null;
+
+    const { data: admin, error: adminError } = await supabase
+      .from('admins')
+      .select('user_id')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (adminError) throw adminError;
+    if (generation !== adminCacheGeneration) return null;
+    if (!admin) return null;
+    return loadAdminData();
+  })()
+    .catch((error) => {
+      if (generation === adminCacheGeneration && !adminLevels) {
+        adminDataError = error instanceof Error
+          ? error.message
+          : 'Admin ma’lumotlarini yuklab bo‘lmadi.';
+        notifyDataChange();
+      }
+      return null;
+    })
+    .finally(() => { adminSessionPreloadPromise = null; });
+  return adminSessionPreloadPromise;
 }
 
 export function clearAdminData() {
   adminCacheGeneration += 1;
   adminLoadPromise = null;
+  if (adminRefreshTimer) clearTimeout(adminRefreshTimer);
+  adminRefreshTimer = null;
   adminLevels = null;
   adminDataError = '';
   adminRefreshPending = false;
+  adminInitialLoadAttempted = false;
+  adminSessionPreloadPromise = null;
+  adminSessionPreloadAttempted = false;
   notifyDataChange();
 }
 
@@ -322,7 +381,7 @@ export async function createLesson(levelId) {
         tartib: (latestLesson?.tartib || 0) + 1,
         fan: 'jahon',
         sarlavha: '',
-        muqova: { sarlavha: '', tagsarlavha: '' },
+        muqova: {},
         bloklar: [],
         holat: 'qoralama',
       })
@@ -369,7 +428,6 @@ export async function createLevel({ sinf, nom }) {
     if (error) throw error;
     if (!data) throw new Error(INSERT_DENIED_ERROR);
     upsertLevel(data);
-    scheduleAdminRefresh();
     return data;
   });
 }
@@ -393,10 +451,7 @@ function buildMissingDefaultLessons(level, existing) {
       level_id: level.id,
       tartib: nextOrder + missing.length + 1,
       ...template,
-      muqova: {
-        sarlavha: template.fan === 'ozbekiston' ? "O'zbekiston *Tarixi*" : 'Jahon *Tarixi*',
-        tagsarlavha: template.sarlavha,
-      },
+      muqova: {},
       bloklar: [],
       holat: 'qoralama',
     });
@@ -410,10 +465,11 @@ export async function ensureLevelLessons(levelId) {
     const level = await loadLevel(client, levelId);
     const { data: existing, error: selectError } = await client
       .from('lessons')
-      .select('id,tartib,fan,sarlavha')
+      .select(LESSON_COLUMNS)
       .eq('level_id', levelId)
       .order('tartib', { ascending: true });
     if (selectError) throw selectError;
+    (existing || []).forEach((lesson) => updateCachedLesson(levelId, lesson));
 
     const missingLessons = buildMissingDefaultLessons(level, existing || []);
     if (missingLessons.length === 0) return { lessonsCreated: 0 };
@@ -421,9 +477,10 @@ export async function ensureLevelLessons(levelId) {
     const { data, error } = await client
       .from('lessons')
       .insert(missingLessons)
-      .select('id');
+      .select(LESSON_COLUMNS);
     if (error) throw error;
     if (!data || data.length !== missingLessons.length) throw new Error(INSERT_DENIED_ERROR);
+    data.forEach((lesson) => updateCachedLesson(levelId, lesson));
     scheduleAdminRefresh();
     return { lessonsCreated: data.length };
   });

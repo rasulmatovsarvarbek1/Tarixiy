@@ -1,6 +1,8 @@
 import React from 'react';
+import { useLanguage } from '../lib/language';
 
 export default function ResourcesPage() {
+  const { t } = useLanguage();
   const resourceButtons = [
     {
       id: 'games',
@@ -42,7 +44,7 @@ export default function ResourcesPage() {
               boxShadow: `0 6px 20px ${btn.glow}`,
             }}
           >
-            {btn.title}
+            {t(btn.title)}
           </button>
         ))}
       </div>

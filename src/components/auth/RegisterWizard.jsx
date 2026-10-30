@@ -6,9 +6,11 @@ import {
   Award,
   CheckCircle2,
 } from 'lucide-react';
+import { useLanguage } from '../../lib/language';
 import './RegisterWizard.css';
 
 export default function RegisterWizard({ onComplete }) {
+  const { t } = useLanguage();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     fullName: '',
@@ -59,15 +61,15 @@ export default function RegisterWizard({ onComplete }) {
           />
 
           <label htmlFor="blind-input" className="blind_input">
-            <span className="hide">Yashirish</span>
-            <span className="show">Ko‘rsatish</span>
+            <span className="hide">{t('Yashirish')}</span>
+            <span className="show">{t('Ko‘rsatish')}</span>
           </label>
 
           <form className="form" onSubmit={handleSubmit}>
-            <div className="title">Tizimga kirish</div>
+            <div className="title">{t('Tizimga kirish')}</div>
 
             <label className="label_input" htmlFor="email-input">
-              Email yoki Login
+              {t('Email yoki Login')}
             </label>
             <input
               spellCheck="false"
@@ -75,7 +77,7 @@ export default function RegisterWizard({ onComplete }) {
               type="text"
               name="email"
               id="email-input"
-              placeholder="Email yoki foydalanuvchi nomi..."
+              placeholder={t('Email yoki foydalanuvchi nomi...')}
               value={formData.email}
               onChange={(e) => {
                 setFormData({ ...formData, email: e.target.value });
@@ -84,10 +86,10 @@ export default function RegisterWizard({ onComplete }) {
 
             <div className="frg_pss">
               <label className="label_input" htmlFor="password-input">
-                Parol
+                {t('Parol')}
               </label>
               <a href="#forgot" onClick={(e) => e.preventDefault()}>
-                Parolni unutdingizmi?
+                {t('Parolni unutdingizmi?')}
               </a>
             </div>
             <input
@@ -96,7 +98,7 @@ export default function RegisterWizard({ onComplete }) {
               type="text"
               name="password"
               id="password-input"
-              placeholder="Parolni kiriting..."
+              placeholder={t('Parolni kiriting...')}
               value={formData.password}
               onChange={(e) => {
                 setFormData({ ...formData, password: e.target.value });
@@ -104,7 +106,7 @@ export default function RegisterWizard({ onComplete }) {
             />
 
             <button className="submit" type="submit">
-              Kirish
+              {t('Kirish')}
             </button>
           </form>
 
@@ -166,10 +168,10 @@ export default function RegisterWizard({ onComplete }) {
       {step === 2 && (
         <div className="step2-card">
           <div style={{ fontSize: '1.35rem', fontWeight: 700, color: '#0f172a', textAlign: 'center', marginBottom: '6px' }}>
-            Sinf va Yo'nalish
+            {t('Sinf va Yo‘nalish')}
           </div>
           <p style={{ fontSize: '13px', color: '#64748b', textAlign: 'center', marginBottom: '20px' }}>
-            O'zingizga mos sinf va o'rganish dasturini tanlang
+            {t('O‘zingizga mos sinf va o‘rganish dasturini tanlang')}
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -191,7 +193,7 @@ export default function RegisterWizard({ onComplete }) {
                     transition: 'all 0.2s',
                   }}
                 >
-                  {grade}-sinf
+                  {t('{grade}-sinf', { grade })}
                 </button>
               ))}
             </div>
@@ -247,10 +249,10 @@ export default function RegisterWizard({ onComplete }) {
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <h4 style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>Full Tarix</h4>
+                  <h4 style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{t('Full Tarix')}</h4>
                   {formData.track === 'full_history' && <CheckCircle2 className="w-4 h-4" style={{ color: '#d97706' }} />}
                 </div>
-                <p style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>O'zbekiston va Jahon tarixi</p>
+                <p style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>{t("O'zbekiston va Jahon tarixi")}</p>
               </div>
             </div>
 
@@ -281,10 +283,10 @@ export default function RegisterWizard({ onComplete }) {
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <h4 style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>Milliy Sertifikat</h4>
+                  <h4 style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{t('Milliy Sertifikat')}</h4>
                   {formData.track === 'national_certificate' && <CheckCircle2 className="w-4 h-4" style={{ color: '#d97706' }} />}
                 </div>
-                <p style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>BMBA / DTM sertifikat imtihoni</p>
+                <p style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>{t('BMBA / DTM sertifikat imtihoni')}</p>
               </div>
             </div>
           </div>
@@ -327,7 +329,7 @@ export default function RegisterWizard({ onComplete }) {
                 boxShadow: '0 4px 14px rgba(217, 119, 6, 0.35)',
               }}
             >
-              <span>Boshlash</span>
+              <span>{t('Boshlash')}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>

@@ -14,6 +14,7 @@ import {
   getCompleted,
   saveCompleted,
 } from '../lib/readerStorage';
+import { useLanguage } from '../lib/language';
 
 // SVG 4-burchakli yulduz (#FFD800)
 function GoldenStar({ size = 24, className = "" }) {
@@ -44,6 +45,7 @@ function CloudCluster({ className = "" }) {
 
 // Qadimiy Sharqona Eshik / Darvoza (Class Gateway Portal)
 function ClassGatePortal({ gradeNumber, gradeTitle }) {
+  const { t } = useLanguage();
   return (
     <div className="relative my-8 min-[360px]:my-10 px-1 min-[360px]:px-2 flex flex-col items-center select-none w-full">
       {/* Nurlar va nur taralishi */}
@@ -56,7 +58,7 @@ function ClassGatePortal({ gradeNumber, gradeTitle }) {
         <div className="absolute -top-4 min-[360px]:-top-5 z-20 px-3.5 min-[360px]:px-5 py-1 min-[360px]:py-1.5 rounded-full bg-gradient-to-r from-[#8A5507] via-[#D4921A] to-[#8A5507] border-2 border-[#FFE885] shadow-[0_6px_20px_rgba(212,146,26,0.7)] flex items-center gap-1.5 min-[360px]:gap-2">
           <Sparkles className="w-3 h-3 min-[360px]:w-3.5 min-[360px]:h-3.5 text-white animate-spin shrink-0" style={{ animationDuration: '4s' }} />
           <span className="text-[11px] min-[360px]:text-[13px] font-extrabold uppercase tracking-wider text-white drop-shadow whitespace-nowrap">
-            {gradeNumber}-sinf Darvozasi
+            {t('{grade}-sinf Darvozasi', { grade: gradeNumber })}
           </span>
           <Sparkles className="w-3 h-3 min-[360px]:w-3.5 min-[360px]:h-3.5 text-white animate-spin shrink-0" style={{ animationDuration: '4s' }} />
         </div>
@@ -95,7 +97,7 @@ function ClassGatePortal({ gradeNumber, gradeTitle }) {
             <div className="px-2.5 min-[360px]:px-3.5 py-1 min-[360px]:py-1.5 rounded-lg min-[360px]:rounded-xl bg-[#0C0F18]/95 border border-[#FFD800]/70 shadow-[0_4px_12px_rgba(0,0,0,0.8)] flex items-center gap-1.5 backdrop-blur-md">
               <DoorClosed className="w-3.5 h-3.5 min-[360px]:w-4 min-[360px]:h-4 text-[#FFD800] shrink-0" />
               <span className="text-[10px] min-[360px]:text-[11px] font-bold text-white tracking-wide whitespace-nowrap">
-                {gradeTitle}
+                {gradeTitle.replace(/(\d+)\s+Level/i, (_, number) => `${number} ${t('Level')}`)}
               </span>
             </div>
           </div>
@@ -110,6 +112,7 @@ function ClassGatePortal({ gradeNumber, gradeTitle }) {
 }
 
 export default function RoadmapPage({ onNavigate, onLevelOpenChange }) {
+  const { t } = useLanguage();
   const [toast, setToast] = useState(null);
   const [shakingId, setShakingId] = useState(null);
   const [levels, setLevels] = useState(() => getCachedLevels());
@@ -152,8 +155,9 @@ export default function RoadmapPage({ onNavigate, onLevelOpenChange }) {
 
   const getPrevLevelName = useCallback((progressionId) => {
     const previous = roadmapLevels.find((level) => level.progressionId === progressionId - 1);
-    return previous?.nom || roadmapLevels[0]?.nom || 'oldingi level';
-  }, [roadmapLevels]);
+    return previous?.nom || roadmapLevels[0]?.nom || t('oldingi level');
+  }, [roadmapLevels, t]);
+  const getLocalizedLevelName = (name) => name.replace(/(\d+)\s+Level/i, (_, number) => `${number} ${t('Level')}`);
 
   const isUnlocked = useCallback((levelId) => levelId === 1, []);
   const isCompleted = useCallback((levelId) => completedIds.includes(levelId), [completedIds]);
@@ -167,7 +171,10 @@ export default function RoadmapPage({ onNavigate, onLevelOpenChange }) {
   const handleCardClick = (level) => {
     if (!isUnlocked(level.progressionId)) {
       setShakingId(level.id);
-      setToast(`🔒 "${level.nom}" qulflangan. Avval ${getPrevLevelName(level.progressionId)} ni yakunlang!`);
+      setToast(t('🔒 "{lesson}" qulflangan. Avval {previous} ni yakunlang!', {
+        lesson: getLocalizedLevelName(level.nom),
+        previous: getLocalizedLevelName(getPrevLevelName(level.progressionId)),
+      }));
       setTimeout(() => setShakingId(null), 500);
       setTimeout(() => setToast(null), 3000);
       return;
@@ -232,18 +239,18 @@ export default function RoadmapPage({ onNavigate, onLevelOpenChange }) {
       return (
         <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-white px-5 text-center">
           <p role="alert" className="text-sm text-red-700">{readerError}</p>
-          <button type="button" onClick={handleClose} className="rounded-xl bg-[#E8B84B] px-4 py-2 font-semibold text-[#2A2A2A]">Orqaga</button>
+          <button type="button" onClick={handleClose} className="rounded-xl bg-[#E8B84B] px-4 py-2 font-semibold text-[#2A2A2A]">{t('Orqaga')}</button>
         </div>
       );
     }
     if (!readerLevel) {
-      return <div className="flex min-h-screen items-center justify-center bg-white text-sm text-[#6F6A62]">Yuklanmoqda...</div>;
+      return <div className="flex min-h-screen items-center justify-center bg-white text-sm text-[#6F6A62]">{t('Yuklanmoqda...')}</div>;
     }
     if (readerLevel.darslar.length === 0) {
       return (
         <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-white px-5 text-center">
-          <p className="text-sm text-[#6F6A62]">Bu levelda e’lon qilingan darslar mavjud emas.</p>
-          <button type="button" onClick={handleClose} className="rounded-xl bg-[#E8B84B] px-4 py-2 font-semibold text-[#2A2A2A]">Orqaga</button>
+          <p className="text-sm text-[#6F6A62]">{t('Bu levelda e’lon qilingan darslar mavjud emas.')}</p>
+          <button type="button" onClick={handleClose} className="rounded-xl bg-[#E8B84B] px-4 py-2 font-semibold text-[#2A2A2A]">{t('Orqaga')}</button>
         </div>
       );
     }
@@ -257,18 +264,18 @@ export default function RoadmapPage({ onNavigate, onLevelOpenChange }) {
   }
 
   if (levelsLoading) {
-    return <div className="flex min-h-screen items-center justify-center bg-white text-sm text-[#6F6A62]">Yuklanmoqda...</div>;
+    return <div className="flex min-h-screen items-center justify-center bg-white text-sm text-[#6F6A62]">{t('Yuklanmoqda...')}</div>;
   }
   if (levelsError) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-white px-5 text-center text-sm text-red-700">
         <p role="alert">{levelsError}</p>
-        <button type="button" onClick={retryLoadingLevels} className="rounded-xl bg-[#E8B84B] px-4 py-2 font-semibold text-[#2A2A2A]">Qayta urinish</button>
+        <button type="button" onClick={retryLoadingLevels} className="rounded-xl bg-[#E8B84B] px-4 py-2 font-semibold text-[#2A2A2A]">{t('Qayta urinish')}</button>
       </div>
     );
   }
   if (roadmapLevels.length === 0) {
-    return <div className="flex min-h-screen items-center justify-center bg-white px-5 text-center text-sm text-[#6F6A62]">Hozircha levellar mavjud emas.</div>;
+    return <div className="flex min-h-screen items-center justify-center bg-white px-5 text-center text-sm text-[#6F6A62]">{t('Hozircha levellar mavjud emas.')}</div>;
   }
 
   return (
@@ -289,7 +296,7 @@ export default function RoadmapPage({ onNavigate, onLevelOpenChange }) {
         <header className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-40 bg-black/40 backdrop-blur-md border-b border-white/10 py-3 min-[360px]:py-3.5 px-4 shadow-sm">
           <div className="flex items-center justify-between">
             <h1 className="text-[18px] min-[360px]:text-[20px] sm:text-[22px] font-extrabold text-white tracking-tight truncate drop-shadow-md">
-              Darslar
+              {t('Darslar')}
             </h1>
 
             {/* O'ng tomon: Yulduz (Top Reyting) + Tanga (Magazin) */}
@@ -344,12 +351,15 @@ export default function RoadmapPage({ onNavigate, onLevelOpenChange }) {
               <div className="flex items-center justify-center gap-1.5 min-[360px]:gap-2">
                 <Sparkles className="w-3.5 h-3.5 min-[360px]:w-4 min-[360px]:h-4 text-[#FFD800] shrink-0" />
                 <h2 className="text-[14px] min-[360px]:text-[16px] sm:text-[17px] font-extrabold text-white tracking-wide uppercase drop-shadow">
-                    {roadmapLevels[0].sinf}–{roadmapLevels[roadmapLevels.length - 1].sinf}-sinf
+                    {t('{first}–{last}-sinf', {
+                      first: roadmapLevels[0].sinf,
+                      last: roadmapLevels[roadmapLevels.length - 1].sinf,
+                    })}
                 </h2>
                 <Sparkles className="w-3.5 h-3.5 min-[360px]:w-4 min-[360px]:h-4 text-[#FFD800] shrink-0" />
               </div>
               <p className="text-[10.5px] min-[360px]:text-[11px] font-medium text-white/75 mt-0.5">
-                {roadmapLevels.length} ta level
+                {roadmapLevels.length} {t('ta level')}
               </p>
             </div>
           </div>
@@ -358,7 +368,7 @@ export default function RoadmapPage({ onNavigate, onLevelOpenChange }) {
           <div className="relative mb-2 pl-2 min-[360px]:pl-4 flex flex-col items-start z-30">
             <div className="flex items-center gap-1.5 min-[360px]:gap-2 bg-[#222634] border border-[#353B4F] text-white px-2.5 min-[360px]:px-3.5 py-1 min-[360px]:py-1.5 rounded-xl shadow-2xl animate-bounce">
               <span className="text-[11px] min-[360px]:text-[12px] font-bold tracking-wide whitespace-nowrap text-white">
-                Sizning darsingiz shu yerda
+                {t('Sizning darsingiz shu yerda')}
               </span>
               <div className="w-2 h-2 rounded-full bg-[#0080FF] animate-ping shrink-0" />
             </div>
@@ -411,7 +421,7 @@ export default function RoadmapPage({ onNavigate, onLevelOpenChange }) {
                       {/* Pastki qism: Level raqami */}
                       <div>
                         <h3 className="text-[17px] min-[360px]:text-[19px] font-extrabold text-white leading-tight">
-                          {level.nom}
+                          {getLocalizedLevelName(level.nom)}
                         </h3>
                       </div>
 
@@ -540,10 +550,10 @@ export default function RoadmapPage({ onNavigate, onLevelOpenChange }) {
               </div>
             </div>
             <h4 className="text-[17px] min-[360px]:text-[19px] font-extrabold text-[#FFD800] mb-1">
-              Katta Tarixiy G'alaba & Sertifikat
+              {t("Katta Tarixiy G'alaba & Sertifikat")}
             </h4>
             <p className="text-[12px] min-[360px]:text-[13px] text-white/70 max-w-[290px] min-[360px]:max-w-xs leading-relaxed">
-              {roadmapLevels.length} ta levelni yakunlab, tarixiy bilimlaringizni mustahkamlang va maxsus sertifikatga ega bo'ling!
+              {t("{count} ta levelni yakunlab, tarixiy bilimlaringizni mustahkamlang va maxsus sertifikatga ega bo'ling!", { count: roadmapLevels.length })}
             </p>
           </div>
 

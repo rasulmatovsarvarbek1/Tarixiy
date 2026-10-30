@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { giftsData } from '../data/giftsData';
 import '../styles/giftAnimations.css';
+import { useLanguage } from '../lib/language';
 
 function GoldCoin({ size = 18, className = '' }) {
   return (
@@ -35,6 +36,7 @@ export default function ShopPage({
   onNavigateToReferral,
   onUpdateCoins
 }) {
+  const { t } = useLanguage();
   const [selectedGift, setSelectedGift] = useState(null);
   const [purchaseStatus, setPurchaseStatus] = useState(null);
   const [tappedId, setTappedId] = useState(null);
@@ -96,7 +98,7 @@ export default function ShopPage({
           type="button"
           onClick={onBack}
           className="w-10 h-10 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] flex items-center justify-center text-[#1E293B] hover:bg-[#F1F5F9] active:scale-95 transition cursor-pointer shadow-sm"
-          aria-label="Orqaga"
+          aria-label={t('Orqaga')}
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
@@ -120,13 +122,13 @@ export default function ShopPage({
       {/* ── SARLAVHA ── */}
       <div className="px-4 pt-4 pb-2 flex items-center justify-between">
         <div>
-          <h1 className="text-[#0F172A] font-black text-2xl tracking-tight">Gift</h1>
+          <h1 className="text-[#0F172A] font-black text-2xl tracking-tight">{t('Hadya')}</h1>
           <p className="text-xs text-[#64748B] mt-0.5">
-            O'zingizga ma'qul bo'lgan sovg'ani tanlang
+            {t('O‘zingizga ma’qul bo‘lgan sovg‘ani tanlang')}
           </p>
         </div>
         <span className="text-xs font-bold text-[#64748B] bg-[#F1F5F9] px-2.5 py-1 rounded-full border border-[#E2E8F0]">
-          {giftsData.length} ta
+          {giftsData.length} {t('ta')}
         </span>
       </div>
 
@@ -190,7 +192,7 @@ export default function ShopPage({
                 type="button"
                 onClick={handleCloseModal}
                 className="absolute right-0 top-0 w-7 h-7 rounded-full bg-[#F1F5F9] hover:bg-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:text-[#0F172A] cursor-pointer"
-                aria-label="Yopish"
+                aria-label={t('Yopish')}
               >
                 <X className="w-4 h-4" />
               </button>
@@ -200,7 +202,7 @@ export default function ShopPage({
             <div className="w-28 h-28 my-2 flex items-center justify-center">
               <img
                 src={selectedGift.image}
-                alt="Gift"
+                alt={t('Hadya')}
                 className={`w-full h-full object-contain drop-shadow-xl ${purchasedId === selectedGift.id ? 'anim-purchased' : (selectedGift.animClass || '')
                   }`}
                 style={{ animationDelay: selectedGift.animDelay || '0s' }}
@@ -209,14 +211,14 @@ export default function ShopPage({
 
             {/* Tavsif matni */}
             <p className="text-xs text-[#64748B] font-medium text-center mt-1 px-4 leading-relaxed">
-              Bu hadyani sahifangizda namoyish qiling
+              {t('Bu hadyani sahifangizda namoyish qiling')}
             </p>
 
             {/* Status: Muvaffaqiyatli sotib olindi */}
             {purchaseStatus === 'success' && (
               <div className="w-full mt-3 p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center justify-center gap-2">
                 <Check className="w-4 h-4 text-emerald-600" />
-                <span>Hadya muvaffaqiyatli sotib olindi!</span>
+                <span>{t('Hadya muvaffaqiyatli sotib olindi!')}</span>
               </div>
             )}
 
@@ -225,10 +227,10 @@ export default function ShopPage({
               <div className="w-full mt-3 p-3 rounded-2xl bg-amber-50 border border-amber-200/90 text-amber-900 flex flex-col items-center gap-1 text-center">
                 <div className="flex items-center gap-1.5 font-black text-xs text-amber-800">
                   <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
-                  <span>Tanga yetarli emas</span>
+                  <span>{t('Tanga yetarli emas')}</span>
                 </div>
                 <p className="text-[11.5px] text-amber-700/90 font-medium">
-                  Tanga to'plash uchun darslikni ko'rishingiz mumkin
+                  {t('Tanga to‘plash uchun darslikni ko‘rishingiz mumkin')}
                 </p>
               </div>
             )}
@@ -245,7 +247,7 @@ export default function ShopPage({
                   className="w-full py-4 rounded-2xl text-white font-black text-base shadow-lg transition flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] bg-[#3B82F6] hover:bg-[#2563EB]"
                 >
                   <BookOpen className="w-5 h-5" />
-                  <span>Darsni ko'rish</span>
+                  <span>{t('Darsni ko‘rish')}</span>
                 </button>
               ) : (
                 <button
@@ -254,7 +256,7 @@ export default function ShopPage({
                   disabled={purchaseStatus === 'success'}
                   className="w-full py-4 rounded-2xl text-white font-black text-base shadow-lg transition flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] bg-[#3B82F6] hover:bg-[#2563EB]"
                 >
-                  <span>Hadya sotib olish:</span>
+                  <span>{t('Hadya sotib olish:')}</span>
                   <span className="flex items-center gap-1 bg-white/20 px-2.5 py-0.5 rounded-full text-sm font-black">
                     <GoldCoin size={16} className="shadow-[inset_0_2px_3px_rgba(255,255,255,0.8)]" />
                     {selectedGift.price.toLocaleString()}

@@ -26,6 +26,7 @@ import {
   CheckCircle2,
   AlertCircle
 } from 'lucide-react';
+import { useLanguage } from '../lib/language';
 
 export default function ProfilePage({
   userData,
@@ -33,7 +34,10 @@ export default function ProfilePage({
   onLogout,
   currentPage: externalCurrentPage,
   setCurrentPage: setExternalCurrentPage,
+  appTheme = 'system',
+  onAppThemeChange = () => {},
 }) {
+  const { language, setLanguage, t } = useLanguage();
   // Navigation stack state: 'main' | 'settings_menu' | 'edit_profile' | 'donate' | 'gifts' | 'send_gift' | 'empty_page'
   const [localCurrentPage, setLocalCurrentPage] = useState('main');
   const currentPage = externalCurrentPage !== undefined ? externalCurrentPage : localCurrentPage;
@@ -57,7 +61,6 @@ export default function ProfilePage({
 
   // Tillarni tanlash modali
   const [isLangModalOpen, setIsLangModalOpen] = useState(false);
-  const [currentLang, setCurrentLang] = useState("O'zbekcha");
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
   // Profil tahrirlash ma'lumotlari (Form state)
@@ -106,7 +109,7 @@ export default function ProfilePage({
         phone: profileForm.phone,
       });
     }
-    showToast('Profil maʼlumotlari saqlandi!');
+    showToast(t('Shaxsiy maʼlumotlar saqlandi!'));
     navigateTo(editProfileSource || 'main');
   };
 
@@ -141,7 +144,7 @@ export default function ProfilePage({
               <div className="w-8 h-8 rounded-xl bg-[#FFF7ED] flex items-center justify-center text-[#EA580C]">
                 <Globe className="w-4 h-4" />
               </div>
-              <h3 className="text-base sm:text-lg font-bold text-[#0F172A]">Ilova tilini tanlang</h3>
+              <h3 className="text-base sm:text-lg font-bold text-[#0F172A]">{t('Ilova tilini tanlang')}</h3>
             </div>
             <button
               type="button"
@@ -158,20 +161,21 @@ export default function ProfilePage({
                 key={l.code}
                 type="button"
                 onClick={() => {
-                  setCurrentLang(l.name);
+                  setLanguage(l.code);
                   setIsLangModalOpen(false);
-                  showToast(`Til o'zgartirildi: ${l.name}`);
+                  const languageName = l.code === 'uz' ? t("O'zbekcha") : t(l.name);
+                  showToast(t('Til o‘zgartirildi: {language}', { language: languageName }));
                 }}
-                className={`w-full p-3 sm:p-3.5 rounded-xl sm:rounded-2xl border flex items-center justify-between transition cursor-pointer ${currentLang === l.name
+                className={`w-full p-3 sm:p-3.5 rounded-xl sm:rounded-2xl border flex items-center justify-between transition cursor-pointer ${language === l.code
                     ? 'bg-[#FEF3C7] border-[#E8B84B] text-[#B4821A]'
                     : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#1E293B] hover:bg-[#F1F5F9]'
                   }`}
               >
                 <div className="flex items-center gap-3">
                   <span className="text-lg sm:text-xl">{l.flag}</span>
-                  <span className="font-semibold text-xs sm:text-sm">{l.name}</span>
+                    <span className="font-semibold text-xs sm:text-sm">{t(l.code === 'uz' ? "O'zbekcha" : l.name)}</span>
                 </div>
-                {currentLang === l.name && <Check className="w-4 h-4 text-[#B4821A]" />}
+                {language === l.code && <Check className="w-4 h-4 text-[#B4821A]" />}
               </button>
             ))}
           </div>
@@ -181,7 +185,7 @@ export default function ProfilePage({
             onClick={() => setIsLangModalOpen(false)}
             className="w-full py-2.5 sm:py-3 mt-3 rounded-xl bg-[#F1F5F9] text-[#1E293B] text-[11px] sm:text-xs font-bold hover:bg-[#E2E8F0] transition cursor-pointer"
           >
-            Yopish
+            {t('Yopish')}
           </button>
         </div>
       </div>
@@ -248,10 +252,10 @@ export default function ProfilePage({
             >
               <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
-            <h1 className="text-lg sm:text-xl font-bold text-[#0F172A]">Tarifni tanlang</h1>
+            <h1 className="text-lg sm:text-xl font-bold text-[#0F172A]">{t('Tarifni tanlang')}</h1>
           </div>
           <p className="text-[11px] sm:text-xs text-[#64748B] text-center leading-relaxed">
-            O'zingizga qulay muddatni tanlang va barcha<br />darslardan to'liq cheklovlarsiz foydalaning
+            {t("O'zingizga qulay muddatni tanlang va barcha darslardan to'liq cheklovlarsiz foydalaning")}
           </p>
         </div>
 
@@ -263,7 +267,7 @@ export default function ProfilePage({
               {p.isBest && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
                   <span className="inline-flex items-center gap-1 bg-[#E8B84B] text-[#0C0F18] text-[10px] sm:text-[11px] font-bold px-3 py-1 rounded-full shadow">
-                    🔥 Eng yaxshi taklif
+                    {t('🔥 Eng yaxshi taklif')}
                   </span>
                 </div>
               )}
@@ -278,13 +282,13 @@ export default function ProfilePage({
                 {/* Plan header row */}
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <span className="text-base sm:text-lg font-black text-[#0F172A]">{p.period}</span>
+                    <span className="text-base sm:text-lg font-black text-[#0F172A]">{t(p.period)}</span>
                     {p.badge && (
                       <span
                         className="text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full text-white"
                         style={{ background: p.badgeColor || '#10B981' }}
                       >
-                        {p.badge}
+                        {t(p.badge)}
                       </span>
                     )}
                   </div>
@@ -304,7 +308,7 @@ export default function ProfilePage({
                   {p.features.map((f, i) => (
                     <li key={i} className="flex items-start gap-1.5">
                       <span className="text-[#E8B84B] text-[10px] mt-0.5">●</span>
-                      <span className="text-[11px] sm:text-xs text-[#475569] leading-relaxed">{f}</span>
+                      <span className="text-[11px] sm:text-xs text-[#475569] leading-relaxed">{t(f)}</span>
                     </li>
                   ))}
                 </ul>
@@ -328,7 +332,7 @@ export default function ProfilePage({
             onClick={() => showToast("Hozirda ta'mirlash ishlari olib borilmoqda")}
             className="w-full py-4 rounded-2xl bg-[#E8B84B] hover:bg-[#D4A437] text-[#0C0F18] font-bold text-sm sm:text-base shadow-lg shadow-[#E8B84B]/30 active:scale-[0.98] transition cursor-pointer flex items-center justify-center gap-2"
           >
-            Davom etish →
+            {t('Davom etish →')}
           </button>
         </div>
       </div>
@@ -351,17 +355,76 @@ export default function ProfilePage({
           >
             <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
-          <h1 className="text-lg sm:text-xl font-bold text-[#0F172A] truncate">{emptyPageTitle}</h1>
+          <h1 className="text-lg sm:text-xl font-bold text-[#0F172A] truncate">{t(emptyPageTitle)}</h1>
         </div>
         <div className="flex-1 flex flex-col items-center justify-center text-center p-4 sm:p-6">
           <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] flex items-center justify-center text-[#94A3B8] mb-4 shadow-sm">
             <Sparkles className="w-7 h-7 sm:w-8 sm:h-8" />
           </div>
-          <h2 className="text-base sm:text-lg font-bold text-[#0F172A] mb-1">{emptyPageTitle}</h2>
+          <h2 className="text-base sm:text-lg font-bold text-[#0F172A] mb-1">{t(emptyPageTitle)}</h2>
           <p className="text-[11px] sm:text-xs text-[#64748B] max-w-xs">
-            Ushbu sahifa hozirda ishlab chiqilmoqda. Tez orada to'liq ishga tushiriladi.
+            {t('Ushbu sahifa hozirda ishlab chiqilmoqda. Tez orada to‘liq ishga tushiriladi.')}
           </p>
         </div>
+      </div>
+    );
+  }
+
+  if (currentPage === 'display_settings') {
+    const themes = [
+      { id: 'system', label: t('Tizim') },
+      { id: 'light', label: t('Yorug‘') },
+    ];
+
+    return (
+      <div className="display-settings-page min-h-screen px-5 pt-6 text-[#0F172A] page-transition">
+        <div className="mb-8 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => navigateTo('settings_menu')}
+            aria-label={t('Orqaga')}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-current"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <h1 className="text-xl font-bold">{t('Display sozlamalari')}</h1>
+        </div>
+
+        <section className="display-settings-card rounded-[22px] p-5">
+          <h2 className="mb-5 text-base font-semibold">{t('Ilova mavzusi')}</h2>
+          <div className="grid grid-cols-3 gap-3">
+            {themes.map(({ id, label }) => {
+              const selected = appTheme === id;
+              return (
+                <button
+                  type="button"
+                  key={id}
+                  aria-pressed={selected}
+                  onClick={() => onAppThemeChange(id)}
+                  className="flex min-w-0 flex-col items-center gap-2 text-sm font-medium"
+                >
+                  <span className={`display-theme-preview display-theme-preview-${id} ${selected ? 'is-selected' : ''}`}>
+                    <span className="display-theme-preview-header">
+                      <span />
+                      <span />
+                    </span>
+                    <span className="display-theme-preview-content">
+                      <span className="display-theme-preview-sidebar" />
+                      <span className="display-theme-preview-lines">
+                        <i />
+                        <i />
+                        <i />
+                        <i />
+                      </span>
+                    </span>
+                    {selected && <span className="display-theme-preview-check" aria-hidden="true">✓</span>}
+                  </span>
+                  <span>{label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
       </div>
     );
   }
@@ -385,7 +448,7 @@ export default function ProfilePage({
             >
               <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
-            <h1 className="text-lg sm:text-xl font-bold text-[#0F172A]">Profilni tahrirlash</h1>
+            <h1 className="text-lg sm:text-xl font-bold text-[#0F172A]">{t('Profilni tahrirlash')}</h1>
           </div>
         </div>
 
@@ -393,33 +456,33 @@ export default function ProfilePage({
           {/* Asosiy ma'lumotlar */}
           <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl p-3.5 sm:p-4 space-y-3 sm:space-y-3.5 shadow-sm">
             <h3 className="text-[10px] sm:text-xs font-bold text-[#D97706] uppercase tracking-wider">
-              Asosiy ma'lumotlar
+              {t("Asosiy ma'lumotlar")}
             </h3>
 
             <div>
-              <label className="text-[10px] sm:text-xs text-[#64748B] block mb-1 font-medium">Ism</label>
+              <label className="text-[10px] sm:text-xs text-[#64748B] block mb-1 font-medium">{t('Ism')}</label>
               <input
                 type="text"
                 value={profileForm.firstName}
                 onChange={(e) => setProfileForm({ ...profileForm, firstName: e.target.value })}
-                placeholder="Ismingiz"
+                placeholder={t('Ismingiz')}
                 className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-white border border-[#E2E8F0] focus:border-[#E8B84B] rounded-xl text-xs sm:text-sm text-[#0F172A] placeholder-[#94A3B8] outline-none transition"
               />
             </div>
 
             <div>
-              <label className="text-[10px] sm:text-xs text-[#64748B] block mb-1 font-medium">Familiya / Tahallus</label>
+              <label className="text-[10px] sm:text-xs text-[#64748B] block mb-1 font-medium">{t('Familiya / Tahallus')}</label>
               <input
                 type="text"
                 value={profileForm.lastName}
                 onChange={(e) => setProfileForm({ ...profileForm, lastName: e.target.value })}
-                placeholder="Familiyangiz"
+                placeholder={t('Familiyangiz')}
                 className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-white border border-[#E2E8F0] focus:border-[#E8B84B] rounded-xl text-xs sm:text-sm text-[#0F172A] placeholder-[#94A3B8] outline-none transition"
               />
             </div>
 
             <div>
-              <label className="text-[10px] sm:text-xs text-[#64748B] block mb-1 font-medium">Tug'ilgan sana</label>
+              <label className="text-[10px] sm:text-xs text-[#64748B] block mb-1 font-medium">{t('Tug‘ilgan sana')}</label>
               <input
                 type="date"
                 value={profileForm.birthDate}
@@ -429,7 +492,7 @@ export default function ProfilePage({
             </div>
 
             <div>
-              <label className="text-[10px] sm:text-xs text-[#64748B] block mb-1.5 font-medium">Jins</label>
+              <label className="text-[10px] sm:text-xs text-[#64748B] block mb-1.5 font-medium">{t('Jins')}</label>
               <div className="grid grid-cols-2 gap-2 sm:gap-3">
                 {['Erkak', 'Ayol'].map((gender) => (
                   <button
@@ -441,7 +504,7 @@ export default function ProfilePage({
                         : 'bg-white border-[#E2E8F0] text-[#64748B] hover:text-[#0F172A]'
                       }`}
                   >
-                    {gender}
+                    {t(gender)}
                   </button>
                 ))}
               </div>
@@ -451,11 +514,11 @@ export default function ProfilePage({
           {/* Aloqa ma'lumotlari */}
           <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl p-3.5 sm:p-4 space-y-3 sm:space-y-3.5 shadow-sm">
             <h3 className="text-[10px] sm:text-xs font-bold text-[#D97706] uppercase tracking-wider">
-              Aloqa ma'lumotlari
+              {t("Aloqa ma'lumotlari")}
             </h3>
 
             <div>
-              <label className="text-[10px] sm:text-xs text-[#64748B] block mb-1 font-medium">Telefon raqam</label>
+              <label className="text-[10px] sm:text-xs text-[#64748B] block mb-1 font-medium">{t('Telefon raqam')}</label>
               <input
                 type="text"
                 value={profileForm.phone}
@@ -466,7 +529,7 @@ export default function ProfilePage({
             </div>
 
             <div>
-              <label className="text-[10px] sm:text-xs text-[#64748B] block mb-1 font-medium">E-pochta</label>
+              <label className="text-[10px] sm:text-xs text-[#64748B] block mb-1 font-medium">{t('E-pochta')}</label>
               <input
                 type="email"
                 value={profileForm.email}
@@ -482,7 +545,7 @@ export default function ProfilePage({
             type="submit"
             className="w-full py-3.5 sm:py-4 rounded-2xl bg-[#E8B84B] hover:bg-[#D4A437] text-[#0C0F18] font-bold text-sm sm:text-base shadow-lg shadow-[#E8B84B]/20 active:scale-[0.98] transition cursor-pointer"
           >
-            Saqlash
+            {t('Saqlash')}
           </button>
         </form>
       </div>
@@ -507,7 +570,7 @@ export default function ProfilePage({
           >
             <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
-          <h1 className="text-lg sm:text-xl font-bold text-[#0F172A]">Donat</h1>
+          <h1 className="text-lg sm:text-xl font-bold text-[#0F172A]">{t('Donat')}</h1>
         </div>
 
         {/* Banner */}
@@ -518,37 +581,37 @@ export default function ProfilePage({
           <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center mb-2 sm:mb-3">
             <Heart className="w-5 h-5 sm:w-6 sm:h-6 text-white fill-white" />
           </div>
-          <h2 className="text-base sm:text-lg font-bold text-white leading-tight">Qo'llab-quvvatlash</h2>
+          <h2 className="text-base sm:text-lg font-bold text-white leading-tight">{t("Qo'llab-quvvatlash")}</h2>
           <p className="text-[10px] sm:text-xs text-white/90 mt-1 sm:mt-1.5 leading-relaxed">
-            "Tarixiy" loyihasini qo'llab-quvvatlang va ko'proq foydali darslar, viktorinalar va manbalar yaratishimizga yordam bering.
+            {t('“Tarixiy” loyihasini qo‘llab-quvvatlang va ko‘proq foydali darslar, viktorinalar va manbalar yaratishimizga yordam bering.')}
           </p>
         </div>
 
         {/* Form elementlari */}
         <div className="space-y-3 sm:space-y-4">
           <div>
-            <label className="text-[10px] sm:text-xs text-[#64748B] block mb-1 font-medium">To'liq ism</label>
+            <label className="text-[10px] sm:text-xs text-[#64748B] block mb-1 font-medium">{t('To‘liq ism')}</label>
             <input
               type="text"
               value={donateName}
               onChange={(e) => setDonateName(e.target.value)}
-              placeholder="Ismingizni kiriting"
+              placeholder={t('Ismingizni kiriting')}
               className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-xs sm:text-sm text-[#0F172A] placeholder-[#94A3B8] outline-none"
             />
           </div>
 
           <div>
-            <label className="text-[10px] sm:text-xs text-[#64748B] block mb-1 font-medium">Hissa turi</label>
+            <label className="text-[10px] sm:text-xs text-[#64748B] block mb-1 font-medium">{t('Hissa turi')}</label>
             <input
               type="text"
-              defaultValue="Tarixiy ta'lim"
+              defaultValue={t('Tarixiy ta’lim')}
               readOnly
               className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-xs sm:text-sm text-[#0F172A] outline-none"
             />
           </div>
 
           <div>
-            <label className="text-[10px] sm:text-xs text-[#64748B] block mb-1 font-medium">Miqdor</label>
+            <label className="text-[10px] sm:text-xs text-[#64748B] block mb-1 font-medium">{t('Miqdor')}</label>
             <div className="relative">
               <input
                 type="number"
@@ -589,7 +652,7 @@ export default function ProfilePage({
 
           {/* To'lov turi */}
           <div className="pt-1 sm:pt-2">
-            <label className="text-[10px] sm:text-xs text-[#64748B] block mb-1.5 sm:mb-2 font-medium">To'lov turi</label>
+            <label className="text-[10px] sm:text-xs text-[#64748B] block mb-1.5 sm:mb-2 font-medium">{t('To‘lov turi')}</label>
             <div className="grid grid-cols-2 gap-2 sm:gap-3">
               <button
                 type="button"
@@ -626,7 +689,7 @@ export default function ProfilePage({
             onClick={() => showToast("Hozirda ta'mirlash ishlari olib borilmoqda")}
             className="w-full py-3.5 sm:py-4 mt-1 sm:mt-2 rounded-2xl bg-[#E8B84B] hover:bg-[#D4A437] text-[#0C0F18] font-bold text-sm sm:text-base shadow-lg shadow-[#E8B84B]/20 active:scale-[0.98] transition cursor-pointer"
           >
-            Qo'llab-quvvatlash
+            {t("Qo'llab-quvvatlash")}
           </button>
         </div>
       </div>
@@ -650,16 +713,16 @@ export default function ProfilePage({
           >
             <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
-          <h1 className="text-lg sm:text-xl font-bold text-[#0F172A]">Premium sovg'alar</h1>
+          <h1 className="text-lg sm:text-xl font-bold text-[#0F172A]">{t('Premium sovg‘alar')}</h1>
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-center text-center px-4">
           <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl sm:rounded-3xl bg-[#FFFBEB] border border-[#FDE68A] flex items-center justify-center text-[#D97706] mb-4 sm:mb-5 shadow-sm">
             <Gift className="w-8 h-8 sm:w-10 sm:h-10" />
           </div>
-          <h2 className="text-xl sm:text-2xl font-black text-[#0F172A] tracking-wide mb-1.5 sm:mb-2">Bo'm-bo'sh</h2>
+          <h2 className="text-xl sm:text-2xl font-black text-[#0F172A] tracking-wide mb-1.5 sm:mb-2">{t('Bo‘m-bo‘sh')}</h2>
           <p className="text-[11px] sm:text-xs text-[#64748B] max-w-xs leading-relaxed mb-6 sm:mb-8">
-            Tezroq sovg'a berib yaqinlaringizni xursand qiling
+            {t('Tezroq sovg‘a berib yaqinlaringizni xursand qiling')}
           </p>
 
           <button
@@ -667,7 +730,7 @@ export default function ProfilePage({
             onClick={() => navigateTo('send_gift')}
             className="w-full max-w-xs py-3.5 sm:py-4 rounded-2xl bg-[#E8B84B] hover:bg-[#D4A437] text-[#0C0F18] font-bold text-sm sm:text-base shadow-lg shadow-[#E8B84B]/20 active:scale-[0.98] transition cursor-pointer"
           >
-            Sovg'a qilish
+            {t('Sovg‘a qilish')}
           </button>
         </div>
       </div>
@@ -692,44 +755,44 @@ export default function ProfilePage({
           >
             <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
-          <h1 className="text-lg sm:text-xl font-bold text-[#0F172A]">"Premium" sovg'a</h1>
+          <h1 className="text-lg sm:text-xl font-bold text-[#0F172A]">{t('“Premium” sovg‘a')}</h1>
         </div>
 
         {/* Info banner */}
         <div className="p-3 sm:p-3.5 bg-[#FFFBEB] border border-[#FDE68A] rounded-xl sm:rounded-2xl flex items-center justify-between mb-4 sm:mb-5">
           <div className="flex items-center gap-2 sm:gap-2.5">
             <Info className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#D97706] shrink-0" />
-            <span className="text-[10px] sm:text-xs font-semibold text-[#B45309]">Bu qanday ishlaydi?</span>
+            <span className="text-[10px] sm:text-xs font-semibold text-[#B45309]">{t('Bu qanday ishlaydi?')}</span>
           </div>
           <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#D97706]" />
         </div>
 
         <div className="space-y-3 sm:space-y-4">
           <div>
-            <label className="text-[10px] sm:text-xs text-[#64748B] block mb-1 font-medium">Sovg'a yuboruvchi</label>
+            <label className="text-[10px] sm:text-xs text-[#64748B] block mb-1 font-medium">{t('Sovg‘a yuboruvchi')}</label>
             <input
               type="text"
               value={giftSender}
               onChange={(e) => setGiftSender(e.target.value)}
-              placeholder="Ismingiz..."
+              placeholder={t('Ismingiz...')}
               className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-xs sm:text-sm text-[#0F172A] outline-none"
             />
           </div>
 
           <div>
-            <label className="text-[10px] sm:text-xs text-[#64748B] block mb-1 font-medium">Sovg'a qabul qilib oluvchi</label>
+            <label className="text-[10px] sm:text-xs text-[#64748B] block mb-1 font-medium">{t('Sovg‘a qabul qilib oluvchi')}</label>
             <input
               type="text"
               value={giftReceiver}
               onChange={(e) => setGiftReceiver(e.target.value)}
-              placeholder="Qabul qiluvchi..."
+              placeholder={t('Qabul qiluvchi...')}
               className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-xs sm:text-sm text-[#0F172A] outline-none"
             />
           </div>
 
           {/* Sovg'ani tanlang */}
           <div className="pt-1">
-            <label className="text-[10px] sm:text-xs text-[#64748B] block mb-1.5 sm:mb-2 font-medium">Sovg'ani tanlang</label>
+            <label className="text-[10px] sm:text-xs text-[#64748B] block mb-1.5 sm:mb-2 font-medium">{t('Sovg‘ani tanlang')}</label>
             <div className="grid grid-cols-2 gap-2 sm:gap-3">
               {/* Oylik */}
               <button
@@ -743,7 +806,7 @@ export default function ProfilePage({
                 <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-[#D1FAE5] flex items-center justify-center mb-2 sm:mb-3">
                   <Gift className="w-6 h-6 sm:w-8 sm:h-8 text-[#059669]" />
                 </div>
-                <span className="text-[10px] sm:text-xs font-bold text-[#0F172A] block">Oylik premium</span>
+                <span className="text-[10px] sm:text-xs font-bold text-[#0F172A] block">{t('Oylik premium')}</span>
                 <span className="text-[10px] sm:text-xs font-black text-[#EA580C] mt-0.5 sm:mt-1 block">33 000 UZS</span>
               </button>
 
@@ -759,7 +822,7 @@ export default function ProfilePage({
                 <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-[#FEE2E2] flex items-center justify-center mb-2 sm:mb-3">
                   <Gift className="w-6 h-6 sm:w-8 sm:h-8 text-[#DC2626]" />
                 </div>
-                <span className="text-[10px] sm:text-xs font-bold text-[#0F172A] block">Yillik premium</span>
+                <span className="text-[10px] sm:text-xs font-bold text-[#0F172A] block">{t('Yillik premium')}</span>
                 <span className="text-[10px] sm:text-xs font-black text-[#EA580C] mt-0.5 sm:mt-1 block">155 000 UZS</span>
               </button>
             </div>
@@ -767,7 +830,7 @@ export default function ProfilePage({
 
           {/* To'lov turi */}
           <div className="pt-1 sm:pt-2">
-            <label className="text-[10px] sm:text-xs text-[#64748B] block mb-1.5 sm:mb-2 font-medium">To'lov turini tanlang</label>
+            <label className="text-[10px] sm:text-xs text-[#64748B] block mb-1.5 sm:mb-2 font-medium">{t('To‘lov turini tanlang')}</label>
             <div className="grid grid-cols-2 gap-2 sm:gap-3">
               <button
                 type="button"
@@ -804,7 +867,7 @@ export default function ProfilePage({
             onClick={() => showToast("Hozirda ta'mirlash ishlari olib borilmoqda")}
             className="w-full py-3.5 sm:py-4 mt-2 sm:mt-3 rounded-2xl bg-[#E8B84B] hover:bg-[#D4A437] text-[#0C0F18] font-bold text-sm sm:text-base shadow-lg shadow-[#E8B84B]/20 active:scale-[0.98] transition cursor-pointer"
           >
-            Sovg'a qilish!
+            {t('Sovg‘a qilish!')}
           </button>
         </div>
       </div>
@@ -829,7 +892,7 @@ export default function ProfilePage({
           >
             <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
-          <h1 className="text-lg sm:text-xl font-bold text-[#0F172A]">Sozlamalar va hisob</h1>
+          <h1 className="text-lg sm:text-xl font-bold text-[#0F172A]">{t('Sozlamalar va hisob')}</h1>
         </div>
 
         <div className="space-y-3 sm:space-y-4">
@@ -837,7 +900,7 @@ export default function ProfilePage({
           {/* 1. Shaxsiy hisob guruhi */}
           <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-sm">
             <div className="px-3 sm:px-4 pt-2.5 sm:pt-3 pb-1 text-[10px] sm:text-[11px] font-bold text-[#64748B] uppercase tracking-wider">
-              Shaxsiy hisob
+              {t('Shaxsiy hisob')}
             </div>
 
             {/* Shaxsiy ma'lumotlar -> Edit profile ga o'tadi */}
@@ -850,7 +913,7 @@ export default function ProfilePage({
                 <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#D1FAE5] flex items-center justify-center text-[#059669] shrink-0">
                   <User className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </div>
-                <span className="text-xs sm:text-sm font-medium text-[#0F172A]">Shaxsiy ma'lumotlar</span>
+                <span className="text-xs sm:text-sm font-medium text-[#0F172A]">{t("Shaxsiy ma'lumotlar")}</span>
               </div>
               <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#94A3B8] shrink-0" />
             </button>
@@ -865,7 +928,7 @@ export default function ProfilePage({
                 <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#FEE2E2] flex items-center justify-center text-[#DC2626] shrink-0">
                   <Heart className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current" />
                 </div>
-                <span className="text-xs sm:text-sm font-medium text-[#0F172A]">Donat</span>
+                <span className="text-xs sm:text-sm font-medium text-[#0F172A]">{t('Donat')}</span>
               </div>
               <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#94A3B8] shrink-0" />
             </button>
@@ -880,7 +943,7 @@ export default function ProfilePage({
                 <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#CFFAFE] flex items-center justify-center text-[#0891B2] shrink-0">
                   <Award className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </div>
-                <span className="text-xs sm:text-sm font-medium text-[#0F172A]">Bonuslarim / Medallar</span>
+                <span className="text-xs sm:text-sm font-medium text-[#0F172A]">{t('Bonuslarim / Medallar')}</span>
               </div>
               <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#94A3B8] shrink-0" />
             </button>
@@ -895,7 +958,7 @@ export default function ProfilePage({
                 <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#EDE9FE] flex items-center justify-center text-[#7C3AED] shrink-0">
                   <Gift className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </div>
-                <span className="text-xs sm:text-sm font-medium text-[#0F172A]">Premium sovg'alar</span>
+                <span className="text-xs sm:text-sm font-medium text-[#0F172A]">{t('Premium sovg‘alar')}</span>
               </div>
               <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#94A3B8] shrink-0" />
             </button>
@@ -906,7 +969,7 @@ export default function ProfilePage({
           {/* 2. Obuna guruhi */}
           <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-sm">
             <div className="px-3 sm:px-4 pt-2.5 sm:pt-3 pb-1 text-[10px] sm:text-[11px] font-bold text-[#64748B] uppercase tracking-wider">
-              Obuna
+              {t('Obuna')}
             </div>
 
             <button
@@ -918,7 +981,7 @@ export default function ProfilePage({
                 <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#FFEDD5] flex items-center justify-center text-[#EA580C] shrink-0">
                   <Crown className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </div>
-                <span className="text-xs sm:text-sm font-medium text-[#0F172A]">Premium</span>
+                <span className="text-xs sm:text-sm font-medium text-[#0F172A]">{t('Premium')}</span>
               </div>
               <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#94A3B8] shrink-0" />
             </button>
@@ -927,20 +990,20 @@ export default function ProfilePage({
           {/* 3. Sozlamalar guruhi */}
           <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-sm">
             <div className="px-3 sm:px-4 pt-2.5 sm:pt-3 pb-1 text-[10px] sm:text-[11px] font-bold text-[#64748B] uppercase tracking-wider">
-              Sozlamalar
+              {t('Sozlamalar')}
             </div>
 
             {/* Displey sozlamalari */}
             <button
               type="button"
-              onClick={() => openEmptyPage('Displey sozlamalari')}
+              onClick={() => navigateTo('display_settings')}
               className="w-full px-3 sm:px-4 py-3 sm:py-3.5 flex items-center justify-between hover:bg-[#F1F5F9] active:bg-[#E2E8F0] transition border-b border-[#E2E8F0]/80 text-left cursor-pointer"
             >
               <div className="flex items-center gap-2.5 sm:gap-3">
                 <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#D1FAE5] flex items-center justify-center text-[#059669] shrink-0">
                   <Moon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </div>
-                <span className="text-xs sm:text-sm font-medium text-[#0F172A]">Displey sozlamalari</span>
+                <span className="text-xs sm:text-sm font-medium text-[#0F172A]">{t('Displey sozlamalari')}</span>
               </div>
               <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#94A3B8] shrink-0" />
             </button>
@@ -955,10 +1018,10 @@ export default function ProfilePage({
                 <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#FFF7ED] flex items-center justify-center text-[#EA580C] shrink-0">
                   <Globe className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </div>
-                <span className="text-xs sm:text-sm font-medium text-[#0F172A]">Ilova tili</span>
+                <span className="text-xs sm:text-sm font-medium text-[#0F172A]">{t('Ilova tili')}</span>
               </div>
               <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                <span className="text-[10px] sm:text-xs font-semibold text-[#64748B]">{currentLang}</span>
+                <span className="text-[10px] sm:text-xs font-semibold text-[#64748B]">{t(language === 'uz' ? "O'zbekcha" : language === 'en' ? 'English' : 'Русский')}</span>
                 <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#94A3B8]" />
               </div>
             </button>
@@ -969,7 +1032,7 @@ export default function ProfilePage({
                 <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#E0F2FE] flex items-center justify-center text-[#0284C7] shrink-0">
                   <Bell className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </div>
-                <span className="text-xs sm:text-sm font-medium text-[#0F172A]">Bildirishnoma</span>
+                <span className="text-xs sm:text-sm font-medium text-[#0F172A]">{t('Bildirishnoma')}</span>
               </div>
 
               {/* Uiverse.io Switcher */}
@@ -1030,7 +1093,7 @@ export default function ProfilePage({
                 <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#F1F5F9] flex items-center justify-center text-[#64748B] shrink-0">
                   <Info className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </div>
-                <span className="text-xs sm:text-sm font-medium text-[#0F172A]">Ilova haqida</span>
+                <span className="text-xs sm:text-sm font-medium text-[#0F172A]">{t('Ilova haqida')}</span>
               </div>
               <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#94A3B8] shrink-0" />
             </button>
@@ -1045,7 +1108,7 @@ export default function ProfilePage({
                 <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#FEF3C7] flex items-center justify-center text-[#D97706] shrink-0">
                   <CreditCard className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </div>
-                <span className="text-xs sm:text-sm font-medium text-[#0F172A]">Tariflar</span>
+                <span className="text-xs sm:text-sm font-medium text-[#0F172A]">{t('Tariflar')}</span>
               </div>
               <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#94A3B8] shrink-0" />
             </button>
@@ -1053,14 +1116,14 @@ export default function ProfilePage({
             {/* Biz bilan bog'lanish */}
             <button
               type="button"
-              onClick={() => openEmptyPage('Biz bilan bogʻlanish')}
+              onClick={() => openEmptyPage("Biz bilan bog'lanish")}
               className="w-full px-3 sm:px-4 py-3 sm:py-3.5 flex items-center justify-between hover:bg-[#F1F5F9] active:bg-[#E2E8F0] transition text-left cursor-pointer"
             >
               <div className="flex items-center gap-2.5 sm:gap-3">
                 <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#E0F2FE] flex items-center justify-center text-[#0284C7] shrink-0">
                   <Mail className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </div>
-                <span className="text-xs sm:text-sm font-medium text-[#0F172A]">Biz bilan bog'lanish</span>
+                <span className="text-xs sm:text-sm font-medium text-[#0F172A]">{t("Biz bilan bog'lanish")}</span>
               </div>
               <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#94A3B8] shrink-0" />
             </button>
@@ -1087,7 +1150,7 @@ export default function ProfilePage({
               <div
                 className="absolute right-5 transform translate-x-full opacity-0 text-white text-base font-semibold transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-100 whitespace-nowrap"
               >
-                Logout
+                {t('Chiqish')}
               </div>
             </button>
           </div>
@@ -1108,13 +1171,13 @@ export default function ProfilePage({
       {/* ─── TEPADAGI HEADER ─── */}
       <div className="px-4 sm:px-5 pt-8 sm:pt-10 pb-3 sm:pb-4 flex items-center justify-between">
         <div className="w-9 sm:w-10" />
-        <h1 className="text-lg sm:text-xl font-bold text-[#0F172A] tracking-wide">Profil</h1>
+        <h1 className="text-lg sm:text-xl font-bold text-[#0F172A] tracking-wide">{t('Profil')}</h1>
         {/* Menyu / Sozlamalar ikonkasi */}
         <button
           type="button"
           onClick={() => navigateTo('settings_menu')}
           className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[#F8FAFC] hover:bg-[#F1F5F9] border border-[#E2E8F0] flex items-center justify-center text-[#1E293B] active:scale-95 transition cursor-pointer shadow-sm"
-          title="Menyu va sozlamalar"
+          title={t('Menyu va sozlamalar')}
         >
           <Menu className="w-4 h-4 sm:w-5 sm:h-5" />
         </button>
@@ -1138,11 +1201,11 @@ export default function ProfilePage({
               onClick={() => navigateTo('edit_profile', 'main')}
               className="px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-[#F8FAFC] hover:bg-[#F1F5F9] border border-[#E2E8F0] text-[10px] sm:text-xs font-bold text-[#0F172A] transition active:scale-95 cursor-pointer shadow-sm"
             >
-              Profil tahrirlash
+              {t('Profil tahrirlash')}
             </button>
             <button
               type="button"
-              onClick={() => showToast('Havola nusxalandi!')}
+              onClick={() => showToast(t('Havola nusxalandi!'))}
               className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[#F8FAFC] hover:bg-[#F1F5F9] border border-[#E2E8F0] flex items-center justify-center text-[#1E293B] transition active:scale-95 cursor-pointer shadow-sm"
             >
               <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -1160,7 +1223,7 @@ export default function ProfilePage({
               type="button"
               onClick={() => navigateTo('edit_profile', 'main')}
               className="text-[#64748B] hover:text-[#D97706] transition p-1 shrink-0"
-              title="Ismni tahrirlash"
+              title={t('Ismni tahrirlash')}
             >
               <Edit2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
@@ -1187,10 +1250,10 @@ export default function ProfilePage({
             </div>
             <div className="min-w-0">
               <h3 className="text-sm sm:text-base font-extrabold text-white leading-tight">
-                Tarixiy Premium
+                {t('Tarixiy Premium')}
               </h3>
               <p className="text-[10px] sm:text-[11px] text-white/90 mt-0.5 leading-snug truncate">
-                O'zingiz uchun premium funksiyalarni kashf eting
+                {t('O‘zingiz uchun premium funksiyalarni kashf eting')}
               </p>
             </div>
           </div>
@@ -1210,7 +1273,7 @@ export default function ProfilePage({
 
         {/* 1. XP / Bilig hisobi */}
         <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl sm:rounded-2xl p-3 sm:p-4 flex flex-col justify-between shadow-sm">
-          <span className="text-[9px] sm:text-[11px] font-semibold text-[#64748B]">Bilig hisobi / XP</span>
+          <span className="text-[9px] sm:text-[11px] font-semibold text-[#64748B]">{t('Bilim hisobi / XP')}</span>
           <div className="flex items-center gap-1.5 sm:gap-2 mt-1.5 sm:mt-2">
             <span className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-[#FEF3C7] text-[#D97706] text-[9px] sm:text-xs font-black flex items-center justify-center">
               🪙
@@ -1221,17 +1284,17 @@ export default function ProfilePage({
 
         {/* 2. Umumiy mutolaa */}
         <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl sm:rounded-2xl p-3 sm:p-4 flex flex-col justify-between shadow-sm">
-          <span className="text-[9px] sm:text-[11px] font-semibold text-[#64748B]">Umumiy mutolaa</span>
+          <span className="text-[9px] sm:text-[11px] font-semibold text-[#64748B]">{t('Umumiy mutolaa')}</span>
           <div className="flex items-center gap-1.5 sm:gap-2 mt-1.5 sm:mt-2">
             <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#0284C7]" />
-            <span className="text-base sm:text-lg font-black text-[#0F172A]">2 soat</span>
+            <span className="text-base sm:text-lg font-black text-[#0F172A]">{t('2 soat')}</span>
           </div>
         </div>
 
         {/* 3. Marra reytingi */}
         <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl sm:rounded-2xl p-3 sm:p-4 flex flex-col justify-between shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-[9px] sm:text-[11px] font-semibold text-[#64748B]">Marra reytingi</span>
+            <span className="text-[9px] sm:text-[11px] font-semibold text-[#64748B]">{t('Marra reytingi')}</span>
             <ChevronRight className="w-3.5 h-3.5 sm:w-3.5 text-[#94A3B8]" />
           </div>
           <div className="flex items-center gap-1.5 sm:gap-2 mt-1.5 sm:mt-2">
@@ -1243,12 +1306,12 @@ export default function ProfilePage({
         {/* 4. Oxirgi 7 kun */}
         <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl sm:rounded-2xl p-3 sm:p-4 flex flex-col justify-between shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-[9px] sm:text-[11px] font-semibold text-[#64748B]">Oxirgi 7 kun</span>
+            <span className="text-[9px] sm:text-[11px] font-semibold text-[#64748B]">{t('Oxirgi 7 kun')}</span>
             <ChevronRight className="w-3.5 h-3.5 sm:w-3.5 text-[#94A3B8]" />
           </div>
           <div className="flex items-center gap-1.5 sm:gap-2 mt-1.5 sm:mt-2">
             <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#7C3AED]" />
-            <span className="text-base sm:text-lg font-black text-[#0F172A]">45 daq</span>
+            <span className="text-base sm:text-lg font-black text-[#0F172A]">{t('45 daq')}</span>
           </div>
         </div>
 
@@ -1257,4 +1320,3 @@ export default function ProfilePage({
     </div>
   );
 }
-

@@ -12,7 +12,8 @@ import {
   Trash2,
 } from 'lucide-react';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
-import BookReader from '../components/BookReader';
+import BookReader, { getImagePageNumbers } from '../components/BookReader';
+import { normalizeLessonText } from '../lib/lessonText';
 import {
   createLesson,
   createLevel,
@@ -77,8 +78,20 @@ function LoadingMessage() {
   return <p className="py-12 text-center text-sm text-[#6F6A62]">Yuklanmoqda...</p>;
 }
 
+function AdminSkeleton({ rows = 3 }) {
+  return (
+    <div aria-hidden="true" className="space-y-3">
+      {Array.from({ length: rows }, (_, index) => (
+        <div key={index} className="h-20 animate-pulse rounded-2xl bg-[#F1EBDD]" />
+      ))}
+    </div>
+  );
+}
+
 function AdminHome({ navigate }) {
   const [levels, setLevels] = useState(() => getCachedAdminLevels());
+  const [isLoading, setIsLoading] = useState(() => !getCachedAdminLevels());
+  const loading = isLoading && !levels;
   const [error, setError] = useState(() => (
     getCachedAdminLevels() ? '' : getAdminDataError()
   ));
@@ -88,12 +101,15 @@ function AdminHome({ navigate }) {
 
   const refreshLevels = useCallback(async () => {
     setError('');
+    setIsLoading(true);
     try {
       await refreshAdminData();
       setLevels(getCachedAdminLevels());
       if (!getCachedAdminLevels()) setError(getAdminDataError());
     } catch (reason) {
       if (!getCachedAdminLevels()) setError(getErrorMessage(reason));
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
@@ -107,7 +123,8 @@ function AdminHome({ navigate }) {
     if (!getCachedAdminLevels()) {
       loadAdminData()
         .then(setLevels)
-        .catch((reason) => setError(getErrorMessage(reason)));
+        .catch((reason) => setError(getErrorMessage(reason)))
+        .finally(() => setIsLoading(false));
     }
     return unsubscribe;
   }, []);
@@ -135,7 +152,6 @@ function AdminHome({ navigate }) {
       const level = await createLevel({ sinf, nom: nom.trim() });
       await ensureLevelLessons(level.id);
       setOperationMessage('Yangi level 3 ta darsi bilan yaratildi.');
-      await refreshAdminData();
     } catch (reason) {
       setError(getErrorMessage(reason));
     } finally {
@@ -167,10 +183,10 @@ function AdminHome({ navigate }) {
       <AdminHeader navigate={navigate} backPath="/" title="Levellar" />
       <main className="mx-auto w-full px-3 py-5 min-[375px]:px-4 sm:px-5 sm:py-7">
         <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-          <button type="button" disabled={busy} onClick={handleCreateLevel} className={PRIMARY}>
+          <button type="button" disabled={busy || !levels} onClick={handleCreateLevel} className={PRIMARY}>
             <Plus size={18} /> Yangi level qo‘shish
           </button>
-          <button type="button" disabled={busy} onClick={handleImportOldData} className={SECONDARY}>
+          <button type="button" disabled={busy || !levels} onClick={handleImportOldData} className={SECONDARY}>
             {busy ? 'Yuklanmoqda...' : 'Eski ma’lumotni bazaga yuklash'}
           </button>
           {levels && (
@@ -180,8 +196,8 @@ function AdminHome({ navigate }) {
           )}
         </div>
         {operationMessage && <p role="status" className="mb-4 rounded-xl bg-green-50 p-4 text-sm text-green-800">{operationMessage}</p>}
-        {error && <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-700">{error}</p>}
-        {error && !levels && <button type="button" onClick={refreshLevels} className={SECONDARY + ' mb-4'}>Qayta urinish</button>}
+        {error && !loading && <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-700">{error}</p>}
+        {error && !levels && !loading && <button type="button" onClick={refreshLevels} className={SECONDARY + ' mb-4'}>Qayta urinish</button>}
         {busy && <p role="status" className="mb-4 text-sm text-[#6F6A62]">Yuklanmoqda, iltimos kuting...</p>}
         {importResult && (
           <section className="mb-5 rounded-xl border border-[#E9E2D8] bg-white p-4 text-sm text-[#514B43]">
@@ -196,7 +212,7 @@ function AdminHome({ navigate }) {
             )}
           </section>
         )}
-        {!levels && !error && <LoadingMessage />}
+        {!levels && loading && <AdminSkeleton rows={4} />}
         {levels?.length === 0 && <p className="rounded-xl bg-white p-6 text-center text-[#6F6A62]">Hozircha levellar mavjud emas.</p>}
         {levels && levels.length > 0 && (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -225,6 +241,8 @@ function AdminHome({ navigate }) {
 
 function AdminLevel({ levelId, navigate }) {
   const [level, setLevel] = useState(() => getCachedLevelAdmin(levelId));
+  const [isLoading, setIsLoading] = useState(() => !getCachedLevelAdmin(levelId));
+  const loading = isLoading && !level;
   const [error, setError] = useState(() => (
     getCachedLevelAdmin(levelId) ? '' : getAdminDataError()
   ));
@@ -240,11 +258,10 @@ function AdminLevel({ levelId, navigate }) {
       }
     };
     const unsubscribe = subscribeToLessonData(syncCache);
-    if (!getCachedLevelAdmin(levelId)) {
-      getLevelAdmin(levelId)
-        .then(setLevel)
-        .catch((reason) => setError(getErrorMessage(reason)));
-    }
+    getLevelAdmin(levelId)
+      .then(setLevel)
+      .catch((reason) => setError(getErrorMessage(reason)))
+      .finally(() => setIsLoading(false));
     return unsubscribe;
   }, [levelId]);
 
@@ -263,13 +280,21 @@ function AdminLevel({ levelId, navigate }) {
       <main className="mx-auto w-full px-3 py-5 min-[375px]:px-4 sm:px-5 sm:py-7">
         <div className="mb-6 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
           <p className="text-sm text-[#6F6A62]">Darslarni ko‘ring va tahrirlang.</p>
-          <button type="button" className={PRIMARY + ' w-full sm:w-auto'} onClick={handleCreate}>
+          <button type="button" disabled={!level} className={PRIMARY + ' w-full sm:w-auto'} onClick={handleCreate}>
             <Plus size={18} /> Yangi dars qo‘shish
           </button>
         </div>
-        {error && <p role="alert" className="mb-4 rounded-xl bg-red-50 p-4 text-sm text-red-700">{error}</p>}
-        {error && !level && <button type="button" onClick={() => refreshAdminData().catch((reason) => setError(getErrorMessage(reason)))} className={SECONDARY + ' mb-4'}>Qayta urinish</button>}
-        {!level && !error && <LoadingMessage />}
+        {error && !loading && <p role="alert" className="mb-4 rounded-xl bg-red-50 p-4 text-sm text-red-700">{error}</p>}
+        {error && !level && !loading && <button type="button" onClick={() => {
+          setError('');
+          setIsLoading(true);
+          refreshAdminData()
+            .then(() => getLevelAdmin(levelId))
+            .then(setLevel)
+            .catch((reason) => setError(getErrorMessage(reason)))
+            .finally(() => setIsLoading(false));
+        }} className={SECONDARY + ' mb-4'}>Qayta urinish</button>}
+        {!level && loading && <AdminSkeleton rows={3} />}
         {level?.darslar.length === 0 && <p className="rounded-xl bg-white p-6 text-center text-[#6F6A62]">Bu levelda darslar yo‘q.</p>}
         {level && level.darslar.length > 0 && (
           <div className="grid gap-3">
@@ -306,14 +331,55 @@ function createBlockId() {
 }
 
 function normalizeLesson(lesson) {
+  const imageKeys = (lesson.bloklar || [])
+    .filter((block) => block.tur === 'rasm')
+    .map((block) => Number(block.kalit))
+    .filter((key) => Number.isInteger(key) && key > 0);
+  const usedKeys = new Set();
+  let nextKey = Math.max(0, ...imageKeys) + 1;
   return {
     ...lesson,
-    muqova: {
-      sarlavha: lesson.muqova?.sarlavha || 'Jahon *Tarixi*',
-      tagsarlavha: lesson.muqova?.tagsarlavha || lesson.sarlavha || '',
-    },
-    bloklar: (lesson.bloklar || []).map((block) => ({ ...block, id: block.id || createBlockId() })),
+    bloklar: (lesson.bloklar || []).map((block) => {
+      if (block.tur !== 'rasm') return { ...block, id: block.id || createBlockId() };
+      let key = Number(block.kalit);
+      if (!Number.isInteger(key) || key < 1 || usedKeys.has(key)) {
+        while (usedKeys.has(nextKey)) nextKey += 1;
+        key = nextKey;
+        nextKey += 1;
+      }
+      usedKeys.add(key);
+      return {
+        ...block,
+        id: block.id || createBlockId(),
+        kalit: key,
+        joy: block.joy || block.joylashuv || 'yuqori',
+      };
+    }),
   };
+}
+
+function getNextImageKey(blocks) {
+  return blocks.reduce((max, block) => (
+    block.tur === 'rasm' && Number.isInteger(Number(block.kalit))
+      ? Math.max(max, Number(block.kalit))
+      : max
+  ), 0) + 1;
+}
+
+function getMissingImageKeys(lesson) {
+  const imageKeys = new Set(
+    lesson.bloklar
+      .filter((block) => block.tur === 'rasm')
+      .map((block) => String(block.kalit))
+  );
+  const markerKeys = new Set();
+  lesson.bloklar.forEach((block) => {
+    if (block.tur !== 'matn') return;
+    const normalizedText = normalizeLessonText(block.qiymat);
+    Array.from(normalizedText.matchAll(/\[rasm(\d+)\]/gi))
+      .forEach((match) => markerKeys.add(String(Number(match[1]))));
+  });
+  return [...markerKeys].filter((key) => !imageKeys.has(key));
 }
 
 function moveBlock(blocks, index, offset) {
@@ -322,19 +388,6 @@ function moveBlock(blocks, index, offset) {
   const reordered = [...blocks];
   [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
   return reordered;
-}
-
-function CoverPreview({ cover }) {
-  const title = (cover.sarlavha || 'Jahon *Tarixi*').split(/(\*[^*]+\*)/g);
-  return (
-    <div className="mx-auto flex min-h-32 w-full max-w-sm items-center justify-center rounded-2xl border border-[#E9E2D8] bg-[#FBF7F2] px-3 py-5 text-center shadow-inner min-[375px]:px-5 sm:min-h-36">
-      <p className="break-words text-[clamp(1.2rem,6vw,1.5rem)] font-extrabold leading-tight text-[#2A2A2A] [overflow-wrap:anywhere]">
-        {title.map((part, index) => part.startsWith('*') && part.endsWith('*')
-          ? <span key={index} className="text-[#E8650A]">{part.slice(1, -1)}</span>
-          : <span key={index}>{part}</span>)}
-      </p>
-    </div>
-  );
 }
 
 function LessonEditor({ levelId, lessonId, navigate, onDirtyChange }) {
@@ -354,9 +407,26 @@ function LessonEditor({ levelId, lessonId, navigate, onDirtyChange }) {
     initialData.levelExists && !initialData.lesson ? 'Dars topilmadi.' : ''
   ));
   const [notice, setNotice] = useState('');
+  const [pasteMessage, setPasteMessage] = useState('');
   const [preview, setPreview] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [imagePageNumbers, setImagePageNumbers] = useState({});
+  const [imageDimensions, setImageDimensions] = useState({});
   const savedSnapshot = useRef(initialData.lesson ? JSON.stringify(initialData.lesson) : '');
+  const textAreaRefs = useRef(new Map());
+  const textSelections = useRef(new Map());
+  const fileInputRefs = useRef(new Map());
+  const pasteMessageTimeout = useRef(null);
+
+  useEffect(() => () => window.clearTimeout(pasteMessageTimeout.current), []);
+
+  useEffect(() => {
+    if (!lesson) return undefined;
+    const frame = requestAnimationFrame(() => {
+      setImagePageNumbers(getImagePageNumbers(lesson, imageDimensions));
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [lesson, imageDimensions]);
 
   useEffect(() => {
     if (initialData.levelExists) return undefined;
@@ -388,10 +458,6 @@ function LessonEditor({ levelId, lessonId, navigate, onDirtyChange }) {
     setNotice('');
   };
 
-  const updateCover = (field, value) => updateLesson({
-    muqova: { ...lesson.muqova, [field]: value },
-  });
-
   const updateBlock = (index, changes) => updateLesson({
     bloklar: lesson.bloklar.map((block, position) => position === index ? { ...block, ...changes } : block),
   });
@@ -399,7 +465,7 @@ function LessonEditor({ levelId, lessonId, navigate, onDirtyChange }) {
   const addBlock = (tur) => updateLesson({
     bloklar: [...lesson.bloklar, tur === 'matn'
       ? { id: createBlockId(), tur, qiymat: '' }
-      : { id: createBlockId(), tur, url: '', izoh: '', joylashuv: 'yuqori' }],
+      : { id: createBlockId(), tur, kalit: getNextImageKey(lesson.bloklar), url: '', izoh: '', joy: 'yuqori', olcham: 'kichik' }],
   });
 
   const removeBlock = (index) => {
@@ -417,6 +483,69 @@ function LessonEditor({ levelId, lessonId, navigate, onDirtyChange }) {
     }
   };
 
+  const insertImageMarker = (index, block) => {
+    const marker = `[rasm${block.kalit}]`;
+    const textarea = textAreaRefs.current.get(block.id);
+    const value = typeof block.qiymat === 'string'
+      ? block.qiymat
+      : Array.isArray(block.qiymat)
+        ? block.qiymat.join('\n')
+        : '';
+    const selection = textSelections.current.get(block.id);
+    const start = Math.min(selection?.start ?? value.length, value.length);
+    const end = Math.min(selection?.end ?? start, value.length);
+    const before = value.slice(0, start);
+    const after = value.slice(end);
+    const prefix = before
+      ? before.endsWith('\n\n') ? '' : before.endsWith('\n') ? '\n' : '\n\n'
+      : '\n\n';
+    const suffix = after
+      ? after.startsWith('\n\n') ? '' : after.startsWith('\n') ? '\n' : '\n\n'
+      : '\n\n';
+    const inserted = `${prefix}${marker}${suffix}`;
+    updateBlock(index, { qiymat: `${before}${inserted}${after}` });
+    if (textarea) {
+      const caret = start + prefix.length + marker.length;
+      textSelections.current.set(block.id, { start: caret, end: caret });
+      requestAnimationFrame(() => {
+        textarea.focus();
+        textarea.setSelectionRange(caret, caret);
+      });
+    }
+  };
+
+  const handleTextPaste = (index, block, event) => {
+    event.preventDefault();
+    const pastedText = normalizeLessonText(event.clipboardData.getData('text/plain'));
+    if (!pastedText) return;
+
+    const textarea = event.currentTarget;
+    const value = typeof block.qiymat === 'string' ? block.qiymat : '';
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const nextValue = `${value.slice(0, start)}${pastedText}${value.slice(end)}`;
+    const caret = start + pastedText.length;
+    updateBlock(index, { qiymat: nextValue });
+    textSelections.current.set(block.id, { start: caret, end: caret });
+    requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.setSelectionRange(caret, caret);
+    });
+    setPasteMessage('Matn tozalandi');
+    window.clearTimeout(pasteMessageTimeout.current);
+    pasteMessageTimeout.current = window.setTimeout(() => setPasteMessage(''), 2200);
+  };
+
+  const copyImageMarker = async (key) => {
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('Bu brauzer nusxa olishni qo‘llab-quvvatlamaydi.');
+      await navigator.clipboard.writeText(`[rasm${key}]`);
+      setNotice('Rasm belgisi nusxalandi.');
+    } catch (reason) {
+      setError(`Belgini nusxalab bo‘lmadi: ${getErrorMessage(reason)}`);
+    }
+  };
+
   const handleSave = async () => {
     setError('');
     try {
@@ -424,9 +553,13 @@ function LessonEditor({ levelId, lessonId, navigate, onDirtyChange }) {
       savedSnapshot.current = JSON.stringify(lesson);
       setDirty(false);
       onDirtyChange(false);
-      setNotice(lesson.holat === 'elon_qilingan'
+      const saveMessage = lesson.holat === 'elon_qilingan'
         ? 'Saqlandi va o‘quvchilarga e’lon qilindi.'
-        : 'Saqlandi. Qoralama dars o‘quvchilarga ko‘rinmaydi; ko‘rsatish uchun “E’lon qilingan”ni tanlang.');
+        : 'Saqlandi. Qoralama dars o‘quvchilarga ko‘rinmaydi; ko‘rsatish uchun “E’lon qilingan”ni tanlang.';
+      const missingKeys = getMissingImageKeys(lesson);
+      setNotice(missingKeys.length
+        ? `${saveMessage} Rasm bloki topilmagan belgilar: ${missingKeys.map((key) => `[rasm${key}]`).join(', ')}.`
+        : saveMessage);
     } catch (reason) {
       setError(getErrorMessage(reason));
     }
@@ -446,7 +579,7 @@ function LessonEditor({ levelId, lessonId, navigate, onDirtyChange }) {
 
   if (preview && lesson) {
     return (
-      <div className="fixed inset-0 z-[1000000] bg-white">
+      <>
         <button
           type="button"
           onClick={() => setPreview(false)}
@@ -458,7 +591,7 @@ function LessonEditor({ levelId, lessonId, navigate, onDirtyChange }) {
           level={{ id: levelId, nom: levelName, darslar: [lesson] }}
           onClose={() => setPreview(false)}
         />
-      </div>
+      </>
     );
   }
 
@@ -466,7 +599,7 @@ function LessonEditor({ levelId, lessonId, navigate, onDirtyChange }) {
     <div className={PAGE_BG + ' min-h-screen'}>
       <AdminHeader navigate={navigate} backPath="/" title={levelName ? `${levelName} · Dars tahriri` : 'Dars tahriri'} />
       <main className="mx-auto w-full space-y-4 px-3 py-5 min-[375px]:space-y-6 min-[375px]:px-5 sm:py-7">
-        {loading && <LoadingMessage />}
+        {loading && <AdminSkeleton rows={4} />}
         {error && !lesson && !loading && (
           <button type="button" onClick={() => {
             setError('');
@@ -485,13 +618,13 @@ function LessonEditor({ levelId, lessonId, navigate, onDirtyChange }) {
               .finally(() => setLoading(false));
           }} className={SECONDARY + ' mb-4'}>Qayta urinish</button>
         )}
-        {error && <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-700">{error}</p>}
+        {error && !loading && <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-700">{error}</p>}
         {!loading && lesson && (
           <>
             <section className="grid min-w-0 gap-4 rounded-2xl border border-[#E9E2D8] bg-white p-3 min-[375px]:p-4 sm:grid-cols-2 sm:p-6">
               <label className="block text-sm font-semibold text-[#514B43]">
                 Fan
-                <select className={FIELD + ' mt-2'} value={lesson.fan} onChange={(event) => updateLesson({ fan: event.target.value, muqova: { ...lesson.muqova, sarlavha: event.target.value === 'ozbekiston' ? "O'zbekiston *Tarixi*" : 'Jahon *Tarixi*' } })}>
+                <select className={FIELD + ' mt-2'} value={lesson.fan} onChange={(event) => updateLesson({ fan: event.target.value })}>
                   <option value="jahon">Jahon tarixi</option>
                   <option value="ozbekiston">O‘zbekiston tarixi</option>
                 </select>
@@ -500,23 +633,6 @@ function LessonEditor({ levelId, lessonId, navigate, onDirtyChange }) {
                 Dars sarlavhasi
                 <input className={FIELD + ' mt-2'} value={lesson.sarlavha} onChange={(event) => updateLesson({ sarlavha: event.target.value })} />
               </label>
-            </section>
-
-            <section className="min-w-0 space-y-4 rounded-2xl border border-[#E9E2D8] bg-white p-3 min-[375px]:p-4 sm:p-6">
-              <div>
-                <h2 className="text-lg font-bold text-[#2A2A2A]">Muqova</h2>
-                <p className="mt-1 text-sm text-[#6F6A62]">Muqova ko‘rinishini shu yerda sozlang.</p>
-              </div>
-              <label className="block text-sm font-semibold text-[#514B43]">
-                Muqova sarlavhasi
-                <input className={FIELD + ' mt-2'} value={lesson.muqova.sarlavha} onChange={(event) => updateCover('sarlavha', event.target.value)} />
-                <span className="mt-1.5 block text-xs font-normal text-[#777168]">Rangli so‘zni *yulduzcha* ichiga oling: Jahon *Tarixi*</span>
-              </label>
-              <label className="block text-sm font-semibold text-[#514B43]">
-                Muqova tagsarlavhasi
-                <input className={FIELD + ' mt-2'} value={lesson.muqova.tagsarlavha} onChange={(event) => updateCover('tagsarlavha', event.target.value)} />
-              </label>
-              <CoverPreview cover={lesson.muqova} />
             </section>
 
             <section className="min-w-0 space-y-4 rounded-2xl border border-[#E9E2D8] bg-white p-3 min-[375px]:p-4 sm:p-6">
@@ -533,61 +649,144 @@ function LessonEditor({ levelId, lessonId, navigate, onDirtyChange }) {
                       <div className="flex items-center gap-1">
                         <button type="button" aria-label="Tepaga ko‘chirish" title="Tepaga" disabled={index === 0} onClick={() => updateLesson({ bloklar: moveBlock(lesson.bloklar, index, -1) })} className="rounded-lg p-2 text-[#514B43] hover:bg-[#F1EBDD] disabled:opacity-30"><ArrowUp size={17} /></button>
                         <button type="button" aria-label="Pastga ko‘chirish" title="Pastga" disabled={index === lesson.bloklar.length - 1} onClick={() => updateLesson({ bloklar: moveBlock(lesson.bloklar, index, 1) })} className="rounded-lg p-2 text-[#514B43] hover:bg-[#F1EBDD] disabled:opacity-30"><ArrowDown size={17} /></button>
-                        <button type="button" aria-label="Blokni o‘chirish" title="O‘chirish" onClick={() => removeBlock(index)} className="rounded-lg p-2 text-red-600 hover:bg-red-50"><Trash2 size={17} /></button>
+                        {block.tur === 'matn' && <button type="button" aria-label="Blokni o‘chirish" title="O‘chirish" onClick={() => removeBlock(index)} className="rounded-lg p-2 text-red-600 hover:bg-red-50"><Trash2 size={17} /></button>}
                       </div>
                     </div>
                     {block.tur === 'matn' ? (
                       <div>
-                        <textarea className={FIELD + ' min-h-40 resize-y'} rows={7} value={block.qiymat} onChange={(event) => updateBlock(index, { qiymat: event.target.value })} placeholder="Dars matnini kiriting..." />
+                        <textarea
+                          ref={(element) => {
+                            if (element) textAreaRefs.current.set(block.id, element);
+                            else textAreaRefs.current.delete(block.id);
+                          }}
+                          className={FIELD + ' min-h-40 resize-y'}
+                          rows={7}
+                          value={block.qiymat || ''}
+                          onChange={(event) => updateBlock(index, { qiymat: event.target.value })}
+                          onPaste={(event) => handleTextPaste(index, block, event)}
+                          onSelect={(event) => {
+                            textSelections.current.set(block.id, {
+                              start: event.currentTarget.selectionStart,
+                              end: event.currentTarget.selectionEnd,
+                            });
+                          }}
+                          onBlur={(event) => {
+                            textSelections.current.set(block.id, {
+                              start: event.currentTarget.selectionStart,
+                              end: event.currentTarget.selectionEnd,
+                            });
+                          }}
+                          placeholder="Dars matnini kiriting..."
+                        />
+                        {pasteMessage && <p role="status" className="mt-1.5 text-xs font-medium text-green-700">{pasteMessage}</p>}
                         <p className="mt-1.5 text-xs font-normal text-[#777168]">Matn kitob uslubida tekislanadi. Muhim so‘zni **qalin**, *kursiv* yozish mumkin.</p>
+                        <p className="mt-1 text-xs font-normal text-[#777168]">Rasm qo‘yish: [rasm1]</p>
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        <fieldset>
-                          <legend className="mb-2 text-sm font-medium text-[#514B43]">Rasm joylashuvi</legend>
-                          <div className="grid grid-cols-3 gap-2">
-                            {[
-                              ['yuqori', 'Tepada'],
-                              ['orta', 'O‘rtada'],
-                              ['past', 'Pastda'],
-                            ].map(([value, label]) => (
-                              <button
-                                type="button"
-                                key={value}
-                                aria-pressed={(block.joylashuv || 'yuqori') === value}
-                                onClick={() => updateBlock(index, { joylashuv: value })}
-                                className={`flex min-h-20 flex-col items-center justify-center gap-1.5 rounded-lg border px-1.5 py-2 text-xs font-semibold transition ${
-                                  (block.joylashuv || 'yuqori') === value
-                                    ? 'border-[#B09B53] bg-[#F7F2DE] text-[#514B43]'
-                                    : 'border-[#DED8CE] bg-white text-[#6F6A62] hover:bg-[#F6F1E9]'
-                                }`}
-                              >
-                                <span className="relative block h-7 w-10" aria-hidden="true">
-                                  <span className="absolute left-0 top-0.5 h-0.5 w-6 rounded bg-current opacity-60" />
-                                  <span className="absolute left-0 top-2.5 h-0.5 w-6 rounded bg-current opacity-60" />
-                                  <span className="absolute left-0 top-[18px] h-0.5 w-6 rounded bg-current opacity-60" />
-                                  <span className={`absolute right-0 h-2.5 w-3 rounded-sm border border-[#B09B53] bg-[#E8DCA8] ${
-                                    value === 'yuqori' ? 'top-0' : value === 'orta' ? 'top-2' : 'bottom-0'
-                                  }`} />
-                                </span>
-                                <span>{label}</span>
-                              </button>
-                            ))}
-                          </div>
-                        </fieldset>
-                        <label className="block text-sm font-medium text-[#514B43]">
-                          Rasm faylini tanlang
-                          <input className="mt-2 block min-w-0 max-w-full text-xs text-[#6F6A62] file:mr-2 file:rounded-lg file:border-0 file:bg-[#F1EBDD] file:px-2 file:py-2 file:font-semibold file:text-[#514B43] min-[375px]:text-sm min-[375px]:file:mr-3 min-[375px]:file:px-3" type="file" accept="image/*" onChange={(event) => handleImageUpload(index, event.target.files?.[0])} />
-                        </label>
-                        <label className="block text-sm font-medium text-[#514B43]">
-                          Yoki rasm URL manzili
-                          <input className={FIELD + ' mt-2'} type="url" value={block.url || ''} onChange={(event) => updateBlock(index, { url: event.target.value })} placeholder="https://..." />
-                        </label>
-                        {block.url && <img src={block.url} alt={block.izoh || 'Tanlangan rasm'} className="max-h-52 max-w-full rounded-lg border border-[#E9E2D8] object-contain" />}
+                        {block.url && (
+                          <img
+                            src={block.url}
+                            alt={block.izoh || 'Tanlangan rasm'}
+                            className="max-h-40 max-w-full rounded-lg border border-[#E9E2D8] object-contain"
+                            onLoad={(event) => {
+                              const { naturalWidth, naturalHeight } = event.currentTarget;
+                              setImageDimensions((previous) => {
+                                const current = previous[block.url];
+                                if (current?.width === naturalWidth && current?.height === naturalHeight && !current.error) return previous;
+                                return { ...previous, [block.url]: { width: naturalWidth, height: naturalHeight } };
+                              });
+                            }}
+                            onError={() => {
+                              setImageDimensions((previous) => (
+                                previous[block.url]?.error
+                                  ? previous
+                                  : { ...previous, [block.url]: { error: true } }
+                              ));
+                            }}
+                          />
+                        )}
+                        <div className="flex flex-wrap items-center gap-2 text-sm text-[#514B43]">
+                          <span className="font-semibold">Belgi: [rasm{block.kalit}]</span>
+                          <span>Hozir: {imagePageNumbers[String(block.kalit)] || 'aniqlanmadi'}-sahifada</span>
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <fieldset>
+                            <legend className="mb-2 text-sm font-medium text-[#514B43]">Joylashuv</legend>
+                            <div className="grid grid-cols-3 gap-2">
+                              {[
+                                ['yuqori', 'Tepada'],
+                                ['orta', 'O‘rtada'],
+                                ['past', 'Pastda'],
+                              ].map(([value, label]) => (
+                                <button
+                                  type="button"
+                                  key={value}
+                                  aria-pressed={(block.joy || block.joylashuv || 'yuqori') === value}
+                                  onClick={() => updateBlock(index, { joy: value })}
+                                  className={`flex min-h-20 flex-col items-center justify-center gap-1.5 rounded-lg border px-1.5 py-2 text-xs font-semibold transition ${
+                                    (block.joy || block.joylashuv || 'yuqori') === value
+                                      ? 'border-[#B09B53] bg-[#F7F2DE] text-[#514B43]'
+                                      : 'border-[#DED8CE] bg-white text-[#6F6A62] hover:bg-[#F6F1E9]'
+                                  }`}
+                                >
+                                  <span className="relative block h-7 w-10" aria-hidden="true">
+                                    <span className="absolute left-0 top-0.5 h-0.5 w-6 rounded bg-current opacity-60" />
+                                    <span className="absolute left-0 top-2.5 h-0.5 w-6 rounded bg-current opacity-60" />
+                                    <span className="absolute left-0 top-[18px] h-0.5 w-6 rounded bg-current opacity-60" />
+                                    <span className={`absolute right-0 h-2.5 w-3 rounded-sm border border-[#B09B53] bg-[#E8DCA8] ${
+                                      value === 'yuqori' ? 'top-0' : value === 'orta' ? 'top-2' : 'bottom-0'
+                                    }`} />
+                                  </span>
+                                  <span>{label}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </fieldset>
+                          <label className="block text-sm font-medium text-[#514B43]">
+                            O‘lcham
+                            <select
+                              className={FIELD + ' mt-2'}
+                              value={['kichik', 'orta', 'katta'].includes(block.olcham) ? block.olcham : 'kichik'}
+                              onChange={(event) => updateBlock(index, { olcham: event.target.value })}
+                            >
+                              <option value="kichik">Kichik</option>
+                              <option value="orta">O‘rta</option>
+                              <option value="katta">Katta</option>
+                            </select>
+                          </label>
+                        </div>
+                        <input
+                          ref={(element) => {
+                            if (element) fileInputRefs.current.set(block.id, element);
+                            else fileInputRefs.current.delete(block.id);
+                          }}
+                          className="sr-only"
+                          type="file"
+                          accept="image/*"
+                          onChange={(event) => {
+                            void handleImageUpload(index, event.target.files?.[0]);
+                            event.target.value = '';
+                          }}
+                        />
                         <label className="block text-sm font-medium text-[#514B43]">
                           Izoh
                           <input className={FIELD + ' mt-2'} value={block.izoh || ''} onChange={(event) => updateBlock(index, { izoh: event.target.value })} placeholder="Rasm izohi" />
                         </label>
+                        {(!block.url || imageDimensions[block.url]?.error || !imageDimensions[block.url]?.width) && (
+                          <label className="block text-sm font-medium text-[#514B43]">
+                            Rasm URL manzili (ixtiyoriy)
+                            <input className={FIELD + ' mt-2'} type="url" value={block.url || ''} onChange={(event) => updateBlock(index, { url: event.target.value })} placeholder="https://..." />
+                          </label>
+                        )}
+                        <div className="flex flex-wrap gap-2">
+                          <button type="button" className={SECONDARY} onClick={() => fileInputRefs.current.get(block.id)?.click()}>
+                            {block.url && imageDimensions[block.url]?.width ? 'Rasmni almashtirish' : 'Rasm faylini tanlash'}
+                          </button>
+                          <button type="button" className={SECONDARY} onClick={() => removeBlock(index)}>O‘chirish</button>
+                          <button type="button" className={SECONDARY} onClick={() => void copyImageMarker(block.kalit)}>Belgini nusxalash</button>
+                          <button type="button" className={SECONDARY} onClick={() => insertImageMarker(index, block)}>Matnga qo‘yish</button>
+                        </div>
                       </div>
                     )}
                   </article>

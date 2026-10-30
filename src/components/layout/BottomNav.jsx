@@ -1,12 +1,14 @@
 import React from 'react';
 import { Home, BookOpen, Layers, UserRound } from 'lucide-react';
+import { useLanguage } from '../../lib/language';
 
 export default function BottomNav({ activeTab, onTabChange }) {
+  const { t } = useLanguage();
   const navItems = [
-    { id: 'home',      label: 'Bosh sahifa', icon: Home },
-    { id: 'lessons',   label: 'Darslar',     icon: BookOpen },
-    { id: 'resources', label: 'Resurslar',   icon: Layers },
-    { id: 'profile',   label: 'Profil',      icon: UserRound },
+    { id: 'home',      label: t('Bosh sahifa'), icon: Home },
+    { id: 'lessons',   label: t('Darslar'),     icon: BookOpen },
+    { id: 'resources', label: t('Resurslar'),   icon: Layers },
+    { id: 'profile',   label: t('Profil'),      icon: UserRound },
   ];
 
   return (
@@ -52,4 +54,3 @@ export default function BottomNav({ activeTab, onTabChange }) {
     </nav>
   );
 }
-

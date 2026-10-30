@@ -27,6 +27,8 @@ import {
   getSettings,
   saveSettings,
 } from '../lib/readerStorage';
+import { normalizeLessonText } from '../lib/lessonText';
+import { useLanguage } from '../lib/language';
 
 /* ═══════════════════════════════════════ CONSTANTS ═══════════════════════════════════════ */
 
@@ -60,206 +62,236 @@ const BG_THEMES = [
 /* ═══════════════════════════════════════ HELPERS ═══════════════════════════════════════ */
 
 function normalizeContent(content) {
-  if (Array.isArray(content)) return content.map(String).map((s) => s.trim()).filter(Boolean);
-  if (typeof content === 'string') {
-    const s = content.replace(/\r\n?/g, '\n').trim();
-    if (!s) return [];
-    if (s.startsWith('[')) {
-      try {
-        const parsed = JSON.parse(s);
-        if (Array.isArray(parsed)) return parsed.map(String).map((x) => x.trim()).filter(Boolean);
-      } catch { /* oddiy matn */ }
-    }
-    return s.split(/\n+/).map((p) => p.trim()).filter(Boolean);
-  }
-  if (content && typeof content === 'object') {
-    if (Array.isArray(content.paragraphs)) return normalizeContent(content.paragraphs);
-    if (typeof content.text === 'string') return normalizeContent(content.text);
-  }
-  return [];
+  const normalized = normalizeLessonText(content);
+  return normalized ? normalized.split(/\n\n+/) : [];
 }
 
-/** Dars ma'lumotlarini unitlarga (rasm va matn paragraflari) ajratish */
-function prepareLessonData(lesson) {
+const IMAGE_MARKER_LINE_PATTERN = /^\[rasm(\d+)\]$/i;
+
+function getImageSize(block) {
+  return ['kichik', 'orta', 'katta'].includes(block.olcham) ? block.olcham : 'kichik';
+}
+
+function getImageKey(block, imageIndex) {
+  const key = block.kalit ?? imageIndex;
+  return String(key).trim();
+}
+
+function createImageGroup(imageBlocks, imagesStatus, includeEmptyAnchors = false) {
+  const entries = imageBlocks.map(({ block, key }) => {
+    const url = typeof block.url === 'string' ? block.url.trim() : '';
+    return {
+      key,
+      url,
+      izoh: block.izoh ? String(block.izoh).trim() : '',
+      olcham: getImageSize(block),
+      joy: ['yuqori', 'orta', 'past'].includes(block.joy || block.joylashuv)
+        ? (block.joy || block.joylashuv)
+        : 'yuqori',
+    };
+  });
+  const images = entries.filter((image) => image.url && !imagesStatus[image.url]?.error);
+  if (!images.length && !includeEmptyAnchors) return null;
+  return {
+    type: 'imageGroup',
+    keys: entries.map((entry) => entry.key),
+    images,
+    joy: entries[0]?.joy || 'yuqori',
+  };
+}
+
+/** Dars ma'lumotlarini ankerli rasm va matn paragraflariga ajratish */
+function prepareLessonData(lesson, imagesStatus = {}, includeEmptyAnchors = false) {
   let blocks = lesson?.bloklar;
-  if (!blocks || !Array.isArray(blocks)) {
-    if (lesson?.content) {
-      blocks = [{ tur: 'matn', qiymat: lesson.content }];
-    } else {
-      blocks = [];
-    }
+  if (!Array.isArray(blocks)) {
+    blocks = lesson?.content ? [{ tur: 'matn', qiymat: lesson.content }] : [];
   }
 
-  const units = [];
-  let gi = 0;
-  let paraCounter = 0;
-
-  blocks.forEach((b, bi) => {
-    if (b.tur === 'rasm') {
-      const url = typeof b.url === 'string' ? b.url.trim() : '';
-      if (url) {
-        units.push({
-          type: 'image',
-          url,
-          izoh: b.izoh ? String(b.izoh).trim() : '',
-          joylashuv: ['yuqori', 'orta', 'past'].includes(b.joylashuv) ? b.joylashuv : 'yuqori',
-          blockIndex: bi,
-        });
-      }
-    } else if (b.tur === 'matn') {
-      const paragraphs = normalizeContent(b.qiymat);
-      paragraphs.forEach((p) => {
-        const segments = p.match(/\*\*[^*]+\*\*|\*[^*]+\*|[^*]+/g) || [p];
-        let wordInPara = 0;
-        const words = segments.flatMap((segment) => {
-          const bold = segment.startsWith('**') && segment.endsWith('**');
-          const italic = !bold && segment.startsWith('*') && segment.endsWith('*');
-          const content = bold ? segment.slice(2, -2) : italic ? segment.slice(1, -1) : segment;
-          return content.split(/\s+/).filter(Boolean).map((word) => ({
-            word,
-            bold,
-            italic,
-            paraIndex: paraCounter,
-            wordInPara: wordInPara++,
-            globalWordIndex: gi++,
-          }));
-        });
-        if (words.length > 0) {
-          units.push({
-            type: 'paragraph',
-            paraIndex: paraCounter,
-            words,
-          });
-          paraCounter++;
-        }
-      });
-    }
+  const imageBlocks = new Map();
+  const imageKeysByBlock = new Map();
+  let imageIndex = 0;
+  blocks.forEach((block) => {
+    if (block.tur !== 'rasm') return;
+    imageIndex += 1;
+    const key = getImageKey(block, imageIndex);
+    imageKeysByBlock.set(block, key);
+    if (!imageBlocks.has(key)) imageBlocks.set(key, { block, key });
   });
 
-  return { lesson, units, totalWords: gi };
-}
+  const anchoredKeys = new Set();
+  const textBlocks = new Map();
+  blocks.forEach((block, blockIndex) => {
+    if (block.tur !== 'matn') return;
+    const paragraphs = normalizeContent(block.qiymat).map((paragraph) => {
+      const marker = paragraph.match(IMAGE_MARKER_LINE_PATTERN);
+      if (marker) anchoredKeys.add(String(Number(marker[1])));
+      return marker
+        ? { marker: String(Number(marker[1])) }
+        : { paragraph };
+    });
+    textBlocks.set(blockIndex, paragraphs);
+  });
 
-function buildPageFlow(elements) {
-  const paragraphs = elements.filter((element) => element.type === 'paragraph');
-  const images = elements.filter((element) => element.type === 'image');
-  const imageEvents = images
-    .map((image, index) => ({
-      image,
-      index,
-      position: image.anchorWordIndex ?? Number.MAX_SAFE_INTEGER,
-    }))
-    .sort((first, second) => first.position - second.position || first.index - second.index);
+  const units = [];
+  let globalWordIndex = 0;
+  let paraCounter = 0;
+  const usedKeys = new Set();
 
-  const flow = [];
-  let eventIndex = 0;
-
-  const pushImagesAtCurrentPosition = (wordPosition) => {
-    while (eventIndex < imageEvents.length && imageEvents[eventIndex].position <= wordPosition) {
-      flow.push(imageEvents[eventIndex].image);
-      eventIndex += 1;
+  const addTextParagraph = (paragraph) => {
+    const segments = paragraph.match(/\*\*[^*]+\*\*|\*[^*]+\*|[^*]+/g) || [paragraph];
+    let wordInPara = 0;
+    const words = segments.flatMap((segment) => {
+      const bold = segment.startsWith('**') && segment.endsWith('**');
+      const italic = !bold && segment.startsWith('*') && segment.endsWith('*');
+      const content = bold ? segment.slice(2, -2) : italic ? segment.slice(1, -1) : segment;
+      return content.split(/\s+/).filter(Boolean).map((word) => ({
+        word,
+        bold,
+        italic,
+        paraIndex: paraCounter,
+        wordInPara: wordInPara++,
+        globalWordIndex: globalWordIndex++,
+      }));
+    });
+    if (words.length) {
+      units.push({ type: 'paragraph', paraIndex: paraCounter, words });
+      paraCounter += 1;
     }
   };
 
-  paragraphs.forEach((paragraph) => {
-    let wordOffset = 0;
-    while (wordOffset < paragraph.words.length) {
-      const wordPosition = paragraph.words[wordOffset].globalWordIndex;
-      pushImagesAtCurrentPosition(wordPosition);
-      const nextImagePosition = imageEvents[eventIndex]?.position;
-      const paragraphEnd = paragraph.words[paragraph.words.length - 1].globalWordIndex + 1;
-      const segmentEnd = nextImagePosition !== undefined && nextImagePosition < paragraphEnd
-        ? nextImagePosition
-        : paragraphEnd;
-      const segmentLength = segmentEnd - wordPosition;
+  blocks.forEach((block, blockIndex) => {
+    if (block.tur === 'rasm') {
+      const key = imageKeysByBlock.get(block);
+      if (anchoredKeys.has(key)) return;
+      const group = createImageGroup([{ block, key }], imagesStatus, includeEmptyAnchors);
+      if (group) units.push(group);
+      return;
+    }
+    if (block.tur !== 'matn') return;
 
-      if (segmentLength <= 0) {
-        pushImagesAtCurrentPosition(wordPosition);
+    const paragraphs = textBlocks.get(blockIndex) || [];
+    for (let paragraphIndex = 0; paragraphIndex < paragraphs.length;) {
+      const current = paragraphs[paragraphIndex];
+      if (current.paragraph) {
+        addTextParagraph(current.paragraph);
+        paragraphIndex += 1;
         continue;
       }
 
-      flow.push({
-        ...paragraph,
-        cont: paragraph.cont || wordOffset > 0,
-        words: paragraph.words.slice(wordOffset, wordOffset + segmentLength),
-      });
-      wordOffset += segmentLength;
+      const consecutiveMarkers = [];
+      while (paragraphIndex < paragraphs.length && paragraphs[paragraphIndex].marker) {
+        consecutiveMarkers.push(paragraphs[paragraphIndex].marker);
+        paragraphIndex += 1;
+      }
+      const anchoredImages = consecutiveMarkers
+        .filter((key) => {
+          if (usedKeys.has(key) || !imageBlocks.has(key)) return false;
+          usedKeys.add(key);
+          return true;
+        })
+        .map((key) => imageBlocks.get(key));
+      for (let index = 0; index < anchoredImages.length; index += 3) {
+        const group = createImageGroup(
+          anchoredImages.slice(index, index + 3),
+          imagesStatus,
+          includeEmptyAnchors,
+        );
+        if (group) units.push(group);
+      }
     }
   });
 
-  pushImagesAtCurrentPosition(Number.MAX_SAFE_INTEGER);
-  return flow;
+  return { lesson, units, totalWords: globalWordIndex };
+}
+
+function orderPageElements(elements) {
+  const top = [];
+  const flowing = [];
+  const bottom = [];
+  elements.forEach((element) => {
+    if (element.type === 'imageGroup' && element.joy === 'yuqori') top.push(element);
+    else if (element.type === 'imageGroup' && element.joy === 'past') bottom.push(element);
+    else flowing.push(element);
+  });
+  return [...top, ...flowing, ...bottom];
 }
 
 /** Sahifalash: yashirin o'lchov elementi yordamida matn va rasmlarni sahifalarga bo'lish */
-function paginateLessonUnits(lessonData, box, maxH, maxW, imagesStatus) {
+function paginateLessonUnits(lessonData, box, maxH, maxW, imagesStatus = {}) {
   const { units } = lessonData;
-  if (!units || units.length === 0) return [];
+  if (!units?.length) return [];
 
-  // Rasm balandligi sahifaning 40% idan oshmasin
   const pageH = maxH + PAD_TOP + PAD_BOTTOM + SAFETY;
-  const maxImgH = Math.min(Math.floor(pageH * 0.4), maxH - 40);
+  const maxImageHeight = (size) => {
+    const ratio = size === 'katta' ? 0.4 : size === 'orta' ? 0.28 : 0.18;
+    return Math.max(1, Math.min(Math.floor(pageH * ratio), maxH - 40));
+  };
 
-  const createMeasureImageElement = (u, availableWidth) => {
-    const status = imagesStatus[u.url];
-    if (status?.error) return null;
-
-    let renderedH = maxImgH;
-    if (status?.width && status?.height) {
-      const aspectH = Math.round(availableWidth * (status.height / status.width));
-      renderedH = Math.min(maxImgH, aspectH);
-    }
-
+  const createMeasureImageElement = (group) => {
     const wrap = document.createElement('div');
-    wrap.style.float = 'right';
-    wrap.style.width = '36%';
-    wrap.style.margin = '8px 0 8px 12px';
+    wrap.style.width = '100%';
+    wrap.style.margin = '8px 0';
+    wrap.style.display = 'flex';
+    wrap.style.justifyContent = 'center';
+    wrap.style.alignItems = 'flex-start';
+    wrap.style.gap = group.images.length > 1 ? '8px' : '0';
     wrap.style.boxSizing = 'border-box';
-    wrap.style.textAlign = 'center';
 
-    const img = document.createElement('div');
-    img.style.width = '100%';
-    img.style.height = `${renderedH}px`;
-    wrap.appendChild(img);
+    group.images.forEach((image) => {
+      const status = imagesStatus[image.url];
+      let renderedH = image.maxImgH;
+      const imageWidth = maxW / group.images.length;
+      if (status?.width && status?.height) {
+        renderedH = Math.min(image.maxImgH, Math.round(imageWidth * (status.height / status.width)));
+      }
 
-    if (u.izoh) {
-      const cap = document.createElement('div');
-      cap.style.fontSize = '12px';
-      cap.style.lineHeight = '1.4';
-      cap.style.marginTop = '6px';
-      cap.textContent = u.izoh;
-      wrap.appendChild(cap);
-    }
-    return { wrap, renderedH };
+      const item = document.createElement('div');
+      item.style.flex = '1 1 0';
+      item.style.minWidth = '0';
+      item.style.textAlign = 'center';
+      const img = document.createElement('div');
+      img.style.width = '100%';
+      img.style.height = `${renderedH}px`;
+      item.appendChild(img);
+
+      if (image.izoh) {
+        const caption = document.createElement('div');
+        caption.style.fontSize = '12px';
+        caption.style.lineHeight = '1.3';
+        caption.style.marginTop = '2px';
+        caption.textContent = image.izoh;
+        item.appendChild(caption);
+      }
+      wrap.appendChild(item);
+    });
+    return wrap;
   };
 
   const createMeasureParagraphElement = (words, cont) => {
-    const p = document.createElement('p');
-    p.style.margin = '0';
-    p.style.textIndent = cont ? '0' : '1.5em';
+    const paragraph = document.createElement('p');
+    paragraph.style.margin = '0 0 4px';
+    paragraph.style.textIndent = cont ? '0' : '1.5em';
     words.forEach((word, index) => {
-      if (index > 0) p.appendChild(document.createTextNode(' '));
+      if (index > 0) paragraph.appendChild(document.createTextNode(' '));
       const span = document.createElement('span');
       span.textContent = word.word;
       if (word.bold) span.style.fontWeight = '700';
       if (word.italic) span.style.fontStyle = 'italic';
-      p.appendChild(span);
+      paragraph.appendChild(span);
     });
-    return p;
+    return paragraph;
   };
 
   const testFit = (elements) => {
     box.textContent = '';
-    for (const el of buildPageFlow(elements)) {
-      if (el.type === 'image') {
-        const availableWidth = maxW * 0.36;
-        const res = createMeasureImageElement(el, availableWidth);
-        if (res) box.appendChild(res.wrap);
-      } else if (el.type === 'paragraph') {
-        const paragraph = createMeasureParagraphElement(el.words, el.cont);
-        paragraph.style.marginBottom = '4px';
-        box.appendChild(paragraph);
+    orderPageElements(elements).forEach((element) => {
+      if (element.type === 'imageGroup') {
+        if (!element.images.length) return;
+        box.appendChild(createMeasureImageElement(element));
+      } else if (element.type === 'paragraph') {
+        box.appendChild(createMeasureParagraphElement(element.words, element.cont));
       }
-    }
+    });
     return box.offsetHeight <= maxH;
   };
 
@@ -267,99 +299,56 @@ function paginateLessonUnits(lessonData, box, maxH, maxW, imagesStatus) {
     let startWord = 0;
     let wordCount = 0;
     let foundWord = false;
-    for (const el of elements) {
-      if (el.type === 'paragraph' && el.words.length > 0) {
+    for (const element of elements) {
+      if (element.type === 'paragraph' && element.words.length > 0) {
         if (!foundWord) {
-          startWord = el.words[0].globalWordIndex;
+          startWord = element.words[0].globalWordIndex;
           foundWord = true;
         }
-        wordCount += el.words.length;
+        wordCount += element.words.length;
       }
     }
-    return {
-      elements,
-      startWord,
-      wordCount,
-    };
+    return { elements: orderPageElements(elements), startWord, wordCount };
   };
 
-  const imageCount = units.filter((unit) => unit.type === 'image').length;
-  const allTextWords = units
-    .filter((unit) => unit.type === 'paragraph')
-    .flatMap((unit) => unit.words);
-  let pageTextCapacity = allTextWords.length;
-  if (pageTextCapacity > 0 && !testFit([{ type: 'paragraph', words: allTextWords, cont: false }])) {
-    let low = 1;
-    let high = pageTextCapacity;
-    while (low < high) {
-      const middle = Math.ceil((low + high) / 2);
-      if (testFit([{ type: 'paragraph', words: allTextWords.slice(0, middle), cont: false }])) low = middle;
-      else high = middle - 1;
-    }
-    pageTextCapacity = low;
-  }
-  const images = units
-    .filter((unit) => unit.type === 'image' && !imagesStatus[unit.url]?.error)
-    .map((unit, index) => {
-      const imageMaxH = Math.min(
-        Math.floor((pageH * 0.4) / Math.max(1, imageCount)),
-        maxH - 40,
-      );
-      let height = imageMaxH;
-      const status = imagesStatus[unit.url];
-      if (status?.width && status?.height) {
-        height = Math.min(imageMaxH, Math.round(maxW * 0.36 * (status.height / status.width)));
-      }
-      return {
-        type: 'image',
-        url: unit.url,
-        izoh: unit.izoh,
-        joylashuv: unit.joylashuv,
-        anchorWordIndex: unit.joylashuv === 'past'
-          ? Math.floor(pageTextCapacity * 0.55)
-          : unit.joylashuv === 'orta'
-            ? Math.floor(pageTextCapacity * 0.4)
-            : 0,
-        order: index,
-        maxImgH: imageMaxH,
-        height,
-      };
-    });
   const pages = [];
-  let currentPageText = [];
-  let currentPageImages = images;
-
+  let currentPage = [];
   const finishCurrentPage = () => {
-    const elements = [...currentPageImages, ...currentPageText];
-    if (elements.length > 0) pages.push(finalizePage(elements));
-    currentPageImages = [];
-    currentPageText = [];
+    if (currentPage.length) pages.push(finalizePage(currentPage));
+    currentPage = [];
   };
 
   for (const unit of units) {
-    if (unit.type !== 'paragraph') continue;
-    const words = unit.words;
-    let wordPointer = 0;
+    if (unit.type === 'imageGroup') {
+      const imageGroup = {
+        ...unit,
+        images: unit.images.map((image) => ({
+          ...image,
+          maxImgH: maxImageHeight(image.olcham),
+        })),
+      };
+      if (imageGroup.images.length && !testFit([...currentPage, imageGroup]) && currentPage.length) {
+        finishCurrentPage();
+      }
+      currentPage.push(imageGroup);
+      continue;
+    }
 
-    while (wordPointer < words.length) {
-      const remainingWords = words.slice(wordPointer);
-      const cont = wordPointer > 0;
+    let wordPointer = 0;
+    while (wordPointer < unit.words.length) {
+      const remainingWords = unit.words.slice(wordPointer);
+      const cont = unit.cont || wordPointer > 0;
       const fitsWords = (count) => testFit([
-        ...currentPageImages,
-        ...currentPageText,
-        { type: 'paragraph', words: remainingWords.slice(0, count), cont },
+        ...currentPage,
+        { ...unit, cont, words: remainingWords.slice(0, count) },
       ]);
 
       if (!fitsWords(1)) {
-        if (currentPageText.length > 0) {
+        if (currentPage.length) {
           finishCurrentPage();
           continue;
         }
-        if (currentPageImages.length > 0) {
-          finishCurrentPage();
-          continue;
-        }
-        currentPageText.push({ type: 'paragraph', words: [remainingWords[0]], cont });
+        currentPage.push({ ...unit, cont, words: [remainingWords[0]] });
         wordPointer += 1;
         continue;
       }
@@ -376,20 +365,60 @@ function paginateLessonUnits(lessonData, box, maxH, maxW, imagesStatus) {
         fittingCount = low;
       }
 
-      currentPageText.push({
-        type: 'paragraph',
-        words: remainingWords.slice(0, fittingCount),
-        cont,
-      });
+      currentPage.push({ ...unit, cont, words: remainingWords.slice(0, fittingCount) });
       wordPointer += fittingCount;
-      if (wordPointer < words.length) finishCurrentPage();
+      if (wordPointer < unit.words.length) finishCurrentPage();
     }
   }
 
   finishCurrentPage();
-
   box.textContent = '';
   return pages;
+}
+
+export function getImagePageNumbers(lesson, imagesStatus = {}) {
+  if (typeof document === 'undefined') return {};
+  const box = document.createElement('div');
+  Object.assign(box.style, {
+    position: 'fixed',
+    left: '-10000px',
+    top: '0',
+    visibility: 'hidden',
+    pointerEvents: 'none',
+    boxSizing: 'content-box',
+    width: '342px',
+    display: 'flow-root',
+    fontFamily: FONTS[0].family,
+    fontSize: '18px',
+    lineHeight: '1.4',
+    textAlign: 'justify',
+    textRendering: 'optimizeLegibility',
+    hyphens: 'auto',
+    WebkitHyphens: 'auto',
+    overflowWrap: 'break-word',
+    wordBreak: 'normal',
+  });
+  document.body.appendChild(box);
+  try {
+    const pages = paginateLessonUnits(
+      prepareLessonData(lesson, imagesStatus, true),
+      box,
+      844 - PAD_TOP - PAD_BOTTOM - SAFETY,
+      390 - PAD_X * 2,
+      imagesStatus,
+    );
+    const pageNumbers = {};
+    pages.forEach((page, pageIndex) => {
+      page.elements.forEach((element) => {
+        if (element.type === 'imageGroup') {
+          element.keys.forEach((key) => { pageNumbers[key] = pageIndex + 1; });
+        }
+      });
+    });
+    return pageNumbers;
+  } finally {
+    box.remove();
+  }
 }
 
 /** O'ziga xos id yaratish */
@@ -400,11 +429,8 @@ function uid() {
 /* ═══════════════════════════════════════ COVER ═══════════════════════════════════════ */
 
 function LessonCover({ lesson, theme }) {
-  const isUzb = (lesson?.fan || lesson?.type) === 'ozbekiston';
   const sarlavha = lesson?.sarlavha || lesson?.title || '';
-  const muqovaSarlavha = lesson?.muqova?.sarlavha
-    || `${isUzb ? "O'zbekiston" : 'Jahon'} *Tarixi*`;
-  const muqovaTagsarlavha = lesson?.muqova?.tagsarlavha || sarlavha;
+  const muqovaSarlavha = lesson?.muqova?.sarlavha || sarlavha;
   const sarlavhaQismlari = muqovaSarlavha.split(/(\*[^*]+\*)/g);
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%', background: theme.bg }}>
@@ -422,9 +448,6 @@ function LessonCover({ lesson, theme }) {
           {sarlavhaQismlari.map((part, index) => part.startsWith('*') && part.endsWith('*')
             ? <span key={index} style={{ color: ORANGE }}>{part.slice(1, -1)}</span>
             : <span key={index}>{part}</span>)}
-        </div>
-        <div style={{ marginTop: 14, fontSize: 'clamp(20px, 5.5vw, 24px)', fontWeight: 700 }}>
-          {muqovaTagsarlavha}
         </div>
       </div>
       <div
@@ -447,6 +470,7 @@ function LessonCover({ lesson, theme }) {
 /* ═══════════════════════════════════════ SETTINGS POPOVER ═══════════════════════════════════════ */
 
 function SettingsPopover({ settings, onChange, theme, onClose }) {
+  const { t } = useLanguage();
   const ref = useRef(null);
   const [fontListOpen, setFontListOpen] = useState(false);
 
@@ -540,7 +564,7 @@ function SettingsPopover({ settings, onChange, theme, onClose }) {
             cursor: 'pointer', padding: '6px 0',
           }}
         >
-          <span style={{ fontWeight: 600 }}>Font</span>
+          <span style={{ fontWeight: 600 }}>{t('Shrift')}</span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 4, opacity: 0.7 }}>
             {settings.fontFamily}
             <ChevronDown size={16} style={{ transform: fontListOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
@@ -569,28 +593,29 @@ function SettingsPopover({ settings, onChange, theme, onClose }) {
 
       {/* d) Fon rangi */}
       <div style={{ marginBottom: 18, display: 'flex', justifyContent: 'center', gap: 12 }}>
-        {BG_THEMES.map((t) => (
+        {BG_THEMES.map((themeOption) => (
           <button
-            key={t.id}
+            key={themeOption.id}
             type="button"
-            onClick={() => onChange({ ...settings, bgTheme: t.id, autoTheme: false })}
+            onClick={() => onChange({ ...settings, bgTheme: themeOption.id, autoTheme: false })}
+            aria-label={t(themeOption.label)}
             style={{
               width: 40, height: 40, borderRadius: '50%',
-              background: t.bg,
-              border: settings.bgTheme === t.id ? `3px solid ${SLIDER_ORANGE}` : `2px solid ${theme.text}33`,
+              background: themeOption.bg,
+              border: settings.bgTheme === themeOption.id ? `3px solid ${SLIDER_ORANGE}` : `2px solid ${theme.text}33`,
               cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 16, color: t.text,
+              fontSize: 16, color: themeOption.text,
             }}
           >
-            {settings.bgTheme === t.id ? '✓' : ''}
+            {settings.bgTheme === themeOption.id ? '✓' : ''}
           </button>
         ))}
       </div>
 
       {/* e) Avto */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: 13 }}>Telefon rejimiga moslash</span>
+        <span style={{ fontSize: 13 }}>{t('Telefon rejimiga moslash')}</span>
         <button
           type="button"
           onClick={() => onChange({ ...settings, autoTheme: !settings.autoTheme })}
@@ -615,6 +640,7 @@ function SettingsPopover({ settings, onChange, theme, onClose }) {
 /* ═══════════════════════════════════════ SAVED SHEET ═══════════════════════════════════════ */
 
 function SavedSheet({ levelId, lessons, theme, onClose, onNavigate }) {
+  const { language, t } = useLanguage();
   const items = getSaved(levelId);
 
   const handleDelete = (id) => {
@@ -642,7 +668,7 @@ function SavedSheet({ levelId, lessons, theme, onClose, onNavigate }) {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-          <span style={{ fontWeight: 700, fontSize: 17 }}>Saqlanganlar</span>
+          <span style={{ fontWeight: 700, fontSize: 17 }}>{t('Saqlanganlar')}</span>
           <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.text }}>
             <X size={20} />
           </button>
@@ -650,7 +676,7 @@ function SavedSheet({ levelId, lessons, theme, onClose, onNavigate }) {
 
         {items.length === 0 ? (
           <p style={{ fontSize: 14, opacity: 0.6, textAlign: 'center', lineHeight: 1.6, padding: '20px 0' }}>
-            Hali hech narsa saqlanmagan. Matnni uzoq bosib tanlang va «Saqlash» ni bosing.
+            {t('Hali hech narsa saqlanmagan. Matnni uzoq bosib tanlang va «Saqlash» ni bosing.')}
           </p>
         ) : (
           items.map((item) => {
@@ -675,7 +701,7 @@ function SavedSheet({ levelId, lessons, theme, onClose, onNavigate }) {
                     {item.text.length > 80 ? item.text.slice(0, 80) + '…' : item.text}
                   </div>
                   <div style={{ fontSize: 12, opacity: 0.5, marginTop: 4 }}>
-                    {lessonTitle} · {new Date(item.createdAt).toLocaleDateString('uz')}
+                    {lessonTitle} · {new Date(item.createdAt).toLocaleDateString(language === 'uz' ? 'uz-UZ' : language === 'ru' ? 'ru-RU' : 'en-US')}
                   </div>
                 </div>
                 <button
@@ -848,6 +874,7 @@ function ProgressSlider({ screenIndex, totalScreens, lessonCoverIndices = [], th
 /* ═══════════════════════════════════════ SAVE SELECTION BUTTON ═══════════════════════════════════════ */
 
 function SaveButton({ position, onSave }) {
+  const { t } = useLanguage();
   if (!position) return null;
   return (
     <button
@@ -870,7 +897,7 @@ function SaveButton({ position, onSave }) {
         whiteSpace: 'nowrap',
       }}
     >
-      Saqlash
+      {t('Saqlash')}
     </button>
   );
 }
@@ -913,6 +940,7 @@ export default function BookReader({ level, lessons, onClose, onFinish, ...props
 }
 
 function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
+  const { language, t } = useLanguage();
   const areaRef = useRef(null);
   const measureRef = useRef(null);
   const rafRef = useRef(0);
@@ -1352,61 +1380,69 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
       </p>
     );
 
-    const renderImage = (el, elIdx) => {
-      const status = imagesStatus[el.url];
-      if (status?.error) return null;
-
-      return (
+    const renderImageGroup = (group, elIdx) => (
+      group.images.length > 0 && (
         <div
           key={`img-${elIdx}`}
           style={{
-            float: 'right',
-            width: '36%',
-            margin: '8px 0 8px 12px',
-            textAlign: 'center',
+            width: '100%',
+            margin: '8px 0',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'flex-start',
+            gap: group.images.length > 1 ? 8 : 0,
             boxSizing: 'border-box',
           }}
         >
-          <img
-            src={el.url}
-            alt={el.izoh || ''}
-            onError={() => {
-              setImagesStatus((prev) => ({
-                ...prev,
-                [el.url]: { loaded: false, error: true },
-              }));
-            }}
-            style={{
-              width: '100%',
-              maxHeight: `${el.maxImgH}px`,
-              height: 'auto',
-              objectFit: 'contain',
-              borderRadius: 8,
-              display: 'block',
-              margin: '0 auto',
-            }}
-          />
-          {el.izoh && (
-            <div
-              style={{
-                fontFamily: SANS,
-                fontSize: 12,
-                opacity: 0.65,
-                marginTop: 6,
-                textAlign: 'center',
-                lineHeight: 1.4,
-                color: theme.text,
-              }}
-            >
-              {el.izoh}
-            </div>
-          )}
+          {group.images.map((image) => {
+            const status = imagesStatus[image.url];
+            if (status?.error) return null;
+            return (
+              <div key={image.key} style={{ flex: '1 1 0', minWidth: 0, textAlign: 'center' }}>
+                <img
+                  src={image.url}
+                  alt={image.izoh || ''}
+                  onError={() => {
+                    setImagesStatus((prev) => ({
+                      ...prev,
+                      [image.url]: { loaded: false, error: true },
+                    }));
+                  }}
+                  style={{
+                    width: 'auto',
+                    maxWidth: '100%',
+                    maxHeight: `${image.maxImgH}px`,
+                    height: 'auto',
+                    objectFit: 'contain',
+                    borderRadius: 8,
+                    display: 'block',
+                    margin: '0 auto',
+                  }}
+                />
+                {image.izoh && (
+                  <div
+                    style={{
+                      fontFamily: SANS,
+                      fontSize: 12,
+                      opacity: 0.65,
+                      marginTop: 2,
+                      textAlign: 'center',
+                      lineHeight: 1.3,
+                      color: theme.text,
+                    }}
+                  >
+                    {image.izoh}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
-      );
-    };
+      )
+    );
 
-    return buildPageFlow(elements).map((el, elIdx) => {
-      if (el.type === 'image') return renderImage(el, elIdx);
+    return elements.map((el, elIdx) => {
+      if (el.type === 'imageGroup') return renderImageGroup(el, elIdx);
       if (el.type === 'paragraph') return renderParagraph(el, elIdx);
       return null;
     });
@@ -1422,7 +1458,7 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
       }}
     >
       <div
-      lang="uz"
+      lang={language}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
       onClick={onClick}
@@ -1455,7 +1491,7 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
         {/* Yashirin o'lchov elementi */}
         <div
           ref={measureRef}
-          lang="uz"
+          lang={language}
           aria-hidden="true"
           style={{
             ...textStyle,
@@ -1546,7 +1582,7 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onClose?.(); }}
-          aria-label="Orqaga"
+          aria-label={t('Orqaga')}
           style={{
             background: 'none', border: 'none', cursor: 'pointer',
             color: theme.text, padding: 8,
@@ -1565,7 +1601,7 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
               e.stopPropagation();
               setSettingsOpen((v) => !v);
             }}
-            aria-label="Sozlamalar"
+            aria-label={t('Sozlamalar')}
             style={{
               background: settingsOpen ? `${SLIDER_ORANGE}22` : 'none',
               border: 'none',
@@ -1587,7 +1623,7 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
               setSettingsOpen(false);
               setSavedOpen(true);
             }}
-            aria-label="Saqlanganlar"
+            aria-label={t('Saqlanganlar')}
             style={{
               background: 'none', border: 'none', cursor: 'pointer',
               color: theme.text, padding: 8,
@@ -1645,7 +1681,7 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
           type="button"
           onClick={(e) => { e.stopPropagation(); goPrev(); }}
           disabled={screenIndex <= 0}
-          aria-label="Oldingi sahifa"
+          aria-label={t('Oldingi sahifa')}
           style={{
             flex: 1,
             background: 'none',
@@ -1669,7 +1705,7 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
           type="button"
           onClick={(e) => { e.stopPropagation(); goNext(); }}
           disabled={screenIndex >= totalScreens - 1}
-          aria-label="Keyingi sahifa"
+          aria-label={t('Keyingi sahifa')}
           style={{
             flex: 1,
             background: 'none',

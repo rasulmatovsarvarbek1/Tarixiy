@@ -24,6 +24,165 @@
   }
 }
 
+@media (prefers-color-scheme: dark) {
+  [data-app-theme="system"] body,
+  [data-app-theme="system"] #root {
+    background-color: #111827;
+    color: #E5E7EB;
+  }
+
+  [data-app-theme="system"] [class~="bg-white"],
+  [data-app-theme="system"] [class~="bg-[#F1F5F9]"],
+  [data-app-theme="system"] [class~="bg-[#F8FAFC]"],
+  [data-app-theme="system"] [class~="bg-[#F9FAFB]"],
+  [data-app-theme="system"] [class~="bg-[#FBF7F2]"],
+  [data-app-theme="system"] [class~="bg-[#FDFCFA]"],
+  [data-app-theme="system"] [class~="bg-[#F6F1E9]"] {
+    background-color: #1F2937 !important;
+  }
+
+  [data-app-theme="system"] [class~="text-[#0F172A]"],
+  [data-app-theme="system"] [class~="text-[#1E293B]"],
+  [data-app-theme="system"] [class~="text-[#334155]"],
+  [data-app-theme="system"] [class~="text-[#475569]"] {
+    color: #F3F4F6 !important;
+  }
+
+  [data-app-theme="system"] [class~="text-[#64748B]"],
+  [data-app-theme="system"] [class~="text-[#94A3B8]"],
+  [data-app-theme="system"] [class~="text-slate-500"],
+  [data-app-theme="system"] [class~="text-slate-600"] {
+    color: #CBD5E1 !important;
+  }
+
+  [data-app-theme="system"] [class~="border-[#E2E8F0]"],
+  [data-app-theme="system"] [class~="border-[#F1F5F9]"],
+  [data-app-theme="system"] [class~="border-slate-200"],
+  [data-app-theme="system"] [class~="border-slate-300"] {
+    border-color: #374151 !important;
+  }
+
+  [data-app-theme="system"] .display-settings-page {
+    background-color: #111827;
+    color: #F3F4F6;
+  }
+
+  [data-app-theme="system"] .display-settings-card {
+    background-color: #1F2937;
+  }
+}
+
+.display-settings-page {
+  background-color: #F3F4F6;
+}
+
+.display-settings-card {
+  background-color: #FFFFFF;
+}
+
+.display-theme-preview {
+  position: relative;
+  display: block;
+  width: 100%;
+  max-width: 128px;
+  height: 142px;
+  overflow: hidden;
+  border: 1.5px solid #E5E7EB;
+  border-radius: 17px;
+  background: #FFFFFF;
+  padding: 18px 8px 8px;
+}
+
+.display-theme-preview.is-selected {
+  border-color: #F97316;
+}
+
+.display-theme-preview-header {
+  position: absolute;
+  top: 18px;
+  left: 17px;
+  right: 17px;
+  display: flex;
+  height: 39px;
+  align-items: flex-start;
+  gap: 5px;
+  border-radius: 10px 10px 0 0;
+  background: linear-gradient(110deg, #F45112, #F8A51B);
+  padding: 10px 6px;
+}
+
+.display-theme-preview-header span {
+  height: 8px;
+  flex: 1;
+  border-radius: 5px;
+  background: #C94915;
+}
+
+.display-theme-preview-header span + span {
+  background: #98A83C;
+}
+
+.display-theme-preview-content {
+  position: absolute;
+  inset: 56px 17px 8px;
+  display: flex;
+  gap: 5px;
+  background: #F8FAFC;
+}
+
+.display-theme-preview-sidebar {
+  width: 40%;
+  border-radius: 3px;
+  background: repeating-linear-gradient(to bottom, #F1F5F9 0 11px, #FFFFFF 11px 15px);
+}
+
+.display-theme-preview-lines {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 5px;
+  border-radius: 3px;
+  background: #111111;
+  padding: 5px;
+}
+
+.display-theme-preview-lines i {
+  height: 8px;
+  border-radius: 2px;
+  background: #222222;
+}
+
+.display-theme-preview-lines i:nth-child(2) {
+  height: 18px;
+}
+
+.display-theme-preview-light .display-theme-preview-content {
+  background: #FFFFFF;
+}
+
+.display-theme-preview-light .display-theme-preview-lines {
+  background: #F3F4F6;
+}
+
+.display-theme-preview-light .display-theme-preview-lines i {
+  background: #E5E7EB;
+}
+
+.display-theme-preview-check {
+  position: absolute;
+  bottom: 7px;
+  left: 7px;
+  display: flex;
+  width: 23px;
+  height: 23px;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid #F97316;
+  border-radius: 50%;
+  background: #FFFFFF;
+  color: transparent;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 7px;

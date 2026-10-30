@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { dashboardData } from '../data/dashboardData';
 import ShopPage from './ShopPage';
+import { useLanguage } from '../lib/language';
 
 
 const FOUR_BUTTONS = [
@@ -106,6 +107,7 @@ export default function HomePage({
   setUserCoins,
   onNavigatePremium,
 }) {
+  const { t } = useLanguage();
   const [localSubPage, setLocalSubPage] = useState(null);
   const activeSubPage = externalSubPage !== undefined ? externalSubPage : localSubPage;
   const setActiveSubPage = (val) => {
@@ -170,7 +172,7 @@ export default function HomePage({
   const handleOpenShareSheet = () => {
     const shareData = {
       title: 'Tarixiy',
-      text: "Tarixiy ilovasida tarix fanini biz bilan birga o'rganing! 10% chegirma oling.",
+      text: t('Tarixiy ilovasida tarix fanini biz bilan birga o‘rganing! 10% chegirma oling.'),
       url: `https://tarixiy.uz/ref/${referralCode}`,
     };
     if (navigator.share) {
@@ -216,9 +218,9 @@ export default function HomePage({
             className="flex items-center gap-1.5 text-[#1E40AF] text-sm font-semibold active:opacity-60 transition cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />
-            Ortga
+            {t('Ortga')}
           </button>
-          <h1 className="text-[#0F172A] font-bold text-lg">Suhbatlar</h1>
+          <h1 className="text-[#0F172A] font-bold text-lg">{t('Suhbatlar')}</h1>
           <div className="w-16" />
         </div>
 
@@ -237,12 +239,12 @@ export default function HomePage({
             {/* Info */}
             <div className="flex-1 min-w-0 text-left">
               <div className="flex items-center justify-between mb-0.5">
-                <p className="text-[#0F172A] font-semibold text-[15px] truncate">Support Service</p>
+                <p className="text-[#0F172A] font-semibold text-[15px] truncate">{t('Support Service')}</p>
                 <p className="text-[#94A3B8] text-xs shrink-0 ml-2">10:00</p>
               </div>
               <div className="flex items-center justify-between">
                 <p className="text-[#64748B] text-sm truncate">
-                  Assalomu Alaykum! Tarixiy ilovaga xush...
+                  {t('Assalomu Alaykum! Tarixiy ilovaga xush...')}
                 </p>
                 {/* Unread badge */}
                 <span className="ml-2 w-5 h-5 rounded-full bg-[#1E40AF] flex items-center justify-center text-white text-[10px] font-bold shrink-0">
@@ -275,8 +277,8 @@ export default function HomePage({
             S
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-[#0F172A] text-sm leading-tight">Support Service</p>
-            <p className="text-[11px] text-[#22C55E] font-medium">● Online</p>
+            <p className="font-bold text-[#0F172A] text-sm leading-tight">{t('Support Service')}</p>
+            <p className="text-[11px] text-[#22C55E] font-medium">● {t('Online')}</p>
           </div>
         </div>
 
@@ -293,7 +295,7 @@ export default function HomePage({
                   ? 'bg-[#1E40AF] text-white rounded-br-sm'
                   : 'bg-white text-[#0F172A] rounded-bl-sm border border-[#E2E8F0]'
                 }`}>
-                <p className="text-sm leading-relaxed">{msg.text}</p>
+                <p className="text-sm leading-relaxed">{msg.from === 'support' ? t(msg.text) : msg.text}</p>
                 <p className={`text-[10px] mt-1 text-right ${msg.from === 'user' ? 'text-white/60' : 'text-[#94A3B8]'
                   }`}>{msg.time}</p>
               </div>
@@ -316,7 +318,7 @@ export default function HomePage({
                 value={chatMessage}
                 onChange={(e) => setChatMessage(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                placeholder="Xabar yozing..."
+                placeholder={t('Xabar yozing...')}
                 className="flex-1 bg-[#F1F5F9] rounded-full px-4 py-2.5 text-sm text-[#0F172A] placeholder-[#94A3B8] outline-none border border-transparent focus:border-[#3B82F6] transition"
               />
               {/* Image */}
@@ -355,7 +357,7 @@ export default function HomePage({
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
-            <h1 className="text-base sm:text-lg font-bold text-[#0F172A]">Do'stlar ro'yxati</h1>
+            <h1 className="text-base sm:text-lg font-bold text-[#0F172A]">{t("Do'stlar ro'yxati")}</h1>
             <div className="w-9" />
           </div>
 
@@ -363,14 +365,14 @@ export default function HomePage({
           <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl p-4 mb-4 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[#64748B] text-xs font-semibold uppercase tracking-wider">Jami taklif qilingan</p>
-                <h3 className="text-[#0F172A] text-2xl font-black mt-0.5">3 ta do'st</h3>
+                <p className="text-[#64748B] text-xs font-semibold uppercase tracking-wider">{t('Jami taklif qilingan')}</p>
+                <h3 className="text-[#0F172A] text-2xl font-black mt-0.5">{t("3 ta do'st")}</h3>
               </div>
               <div className="text-right">
-                <p className="text-[#64748B] text-xs font-semibold uppercase tracking-wider">Mukofot tangalar</p>
+                <p className="text-[#64748B] text-xs font-semibold uppercase tracking-wider">{t('Mukofot tangalar')}</p>
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-200 rounded-full mt-1">
                   <GoldCoin size={16} />
-                  <span className="text-amber-700 font-bold text-sm">+300 tanga</span>
+                  <span className="text-amber-700 font-bold text-sm">{t('+300 tanga')}</span>
                 </div>
               </div>
             </div>
@@ -396,11 +398,11 @@ export default function HomePage({
                   </div>
                   <div>
                     <h4 className="font-bold text-sm text-[#0F172A]">{friend.name}</h4>
-                    <p className="text-[11px] text-[#64748B] mt-0.5">{friend.status} • {friend.date}</p>
+                    <p className="text-[11px] text-[#64748B] mt-0.5">{t(friend.status)} • {t(friend.date)}</p>
                   </div>
                 </div>
                 <div className="px-2.5 py-1 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700 font-bold text-xs shrink-0">
-                  {friend.reward}
+                  {t(friend.reward)}
                 </div>
               </div>
             ))}
@@ -413,7 +415,7 @@ export default function HomePage({
               onClick={() => setShowFriendsList(false)}
               className="w-full py-3.5 rounded-2xl bg-[#F1F5F9] hover:bg-[#E2E8F0] active:scale-95 text-[#1E293B] font-bold text-sm transition cursor-pointer"
             >
-              Ortga qaytish
+              {t('Ortga qaytish')}
             </button>
           </div>
         </div>
@@ -435,7 +437,7 @@ export default function HomePage({
               <ArrowLeft className="w-5 h-5" />
             </button>
             <h1 className="text-base sm:text-lg font-bold text-[#0F172A] tracking-wide">
-              Referal havola
+              {t('Referal havola')}
             </h1>
             <div className="w-9" />
           </div>
@@ -447,13 +449,13 @@ export default function HomePage({
             {refStep === 0 && (
               <div className="fade-in flex flex-col flex-1">
                 <div className="inline-flex self-start items-center px-3 py-1 rounded-full bg-[#EFF6FF] border border-[#BFDBFE] text-[#1D4ED8] text-xs font-bold mb-3">
-                  1-qadam
+                  {t('{step}-qadam', { step: 1 })}
                 </div>
                 <h2 className="text-[#0F172A] font-extrabold text-[18px] sm:text-[20px] leading-tight mb-1.5">
-                  Referral havolangizni ulashing
+                  {t('Referral havolangizni ulashing')}
                 </h2>
                 <p className="text-[#64748B] text-xs leading-relaxed mb-4">
-                  Havolangizni tarix fanini o'rganmoqchi bo'lgan do'stlaringizga yuboring.
+                  {t("Havolangizni tarix fanini o'rganmoqchi bo'lgan do'stlaringizga yuboring.")}
                 </p>
 
                 {/* Vizual illyustratsiya bloki */}
@@ -494,13 +496,13 @@ export default function HomePage({
             {refStep === 1 && (
               <div className="fade-in flex flex-col flex-1">
                 <div className="inline-flex self-start items-center px-3 py-1 rounded-full bg-[#EFF6FF] border border-[#BFDBFE] text-[#1D4ED8] text-xs font-bold mb-3">
-                  2-qadam
+                  {t('{step}-qadam', { step: 2 })}
                 </div>
                 <h2 className="text-[#0F172A] font-extrabold text-[18px] sm:text-[20px] leading-tight mb-1.5">
-                  Ular 10% chegirma olishadi
+                  {t('Ular 10% chegirma olishadi')}
                 </h2>
                 <p className="text-[#64748B] text-xs leading-relaxed mb-4">
-                  Sizning havolangiz orqali ro'yxatdan o'tgan do'stingiz 10% chegirma oladi.
+                  {t("Sizning havolangiz orqali ro'yxatdan o'tgan do'stingiz 10% chegirma oladi.")}
                 </p>
 
                 {/* Vizual illyustratsiya: Chegirma kuponi */}
@@ -508,7 +510,7 @@ export default function HomePage({
                   <div className="bg-[#EFF6FF] rounded-2xl p-4 shadow-sm border border-[#BFDBFE] flex flex-col items-center justify-center w-52 relative transform -rotate-1">
                     <div className="w-12 h-1 bg-[#93C5FD] rounded-full mb-2" />
                     <span className="text-[#2563EB] font-bold text-[11px] uppercase tracking-wider">
-                      Chegirma
+                      {t('Chegirma')}
                     </span>
                     <span className="text-[#1D4ED8] font-black text-3xl tracking-tight">
                       10%
@@ -522,13 +524,13 @@ export default function HomePage({
             {refStep === 2 && (
               <div className="fade-in flex flex-col flex-1">
                 <div className="inline-flex self-start items-center px-3 py-1 rounded-full bg-[#EFF6FF] border border-[#BFDBFE] text-[#1D4ED8] text-xs font-bold mb-3">
-                  3-qadam
+                  {t('{step}-qadam', { step: 3 })}
                 </div>
                 <h2 className="text-[#0F172A] font-extrabold text-[18px] sm:text-[20px] leading-tight mb-1.5">
-                  Siz qo'shimcha 100 tanga olasiz.
+                  {t("Siz qo'shimcha 100 tanga olasiz.")}
                 </h2>
                 <p className="text-[#64748B] text-xs leading-relaxed mb-4">
-                  Do'stingiz ilovani yuklab olgani uchun sizga tanga beramiz, shuningdek, u obuna olsa yana qo'shimcha tangaga ega bo'lasiz.
+                  {t("Do'stingiz ilovani yuklab olgani uchun sizga tanga beramiz, shuningdek, u obuna olsa yana qo'shimcha tangaga ega bo'lasiz.")}
                 </p>
 
                 {/* Vizual illyustratsiya: +100 va oltin tangalar */}
@@ -554,21 +556,21 @@ export default function HomePage({
             {refStep === 3 && (
               <div className="fade-in flex flex-col flex-1">
                 <h2 className="text-[#0F172A] font-extrabold text-[19px] sm:text-[21px] leading-tight mb-3">
-                  Savollaringiz bormi?
+                  {t('Savollaringiz bormi?')}
                 </h2>
 
                 <div className="space-y-2.5 mt-1">
                   <div className="bg-white border border-[#E2E8F0] rounded-2xl p-3.5 shadow-sm">
-                    <h4 className="text-[#0F172A] font-bold text-[13px]">Kimni taklif qilsam bo'ladi?</h4>
+                    <h4 className="text-[#0F172A] font-bold text-[13px]">{t("Kimni taklif qilsam bo'ladi?")}</h4>
                     <p className="text-[#64748B] text-xs mt-1 leading-snug">
-                      Faqat yangi foydalanuvchilar (ilgari ro'yxatdan o'tmagan).
+                      {t("Faqat yangi foydalanuvchilar (ilgari ro'yxatdan o'tmagan).")}
                     </p>
                   </div>
 
                   <div className="bg-white border border-[#E2E8F0] rounded-2xl p-3.5 shadow-sm">
-                    <h4 className="text-[#0F172A] font-bold text-[13px]">Havola ishlamayapti?</h4>
+                    <h4 className="text-[#0F172A] font-bold text-[13px]">{t('Havola ishlamayapti?')}</h4>
                     <p className="text-[#64748B] text-xs mt-1 leading-snug">
-                      Havolani qayta jo'nating yoki ilovani yangilab qayta urinib ko'ring.
+                      {t("Havolani qayta jo'nating yoki ilovani yangilab qayta urinib ko'ring.")}
                     </p>
                   </div>
                 </div>
@@ -581,7 +583,7 @@ export default function HomePage({
                 <button
                   key={idx}
                   type="button"
-                  aria-label={`Qadam ${idx + 1}`}
+                  aria-label={t('Qadam {step}', { step: idx + 1 })}
                   onClick={() => setRefStep(idx)}
                   className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${refStep === idx ? 'w-5 bg-[#2563EB]' : 'w-2 bg-[#CBD5E1] hover:bg-[#94A3B8]'
                     }`}
@@ -598,7 +600,7 @@ export default function HomePage({
           >
             <div className="flex items-center gap-2">
               <span className="text-[#0F172A] font-bold text-base">
-                Do'stlar
+                {t("Do'stlar")}
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -620,7 +622,7 @@ export default function HomePage({
             style={{ background: 'linear-gradient(135deg, #1E40AF 0%, #3B82F6 100%)' }}
           >
             <Share2 className="w-5 h-5" />
-            <span>Havolani ulashish</span>
+            <span>{t('Havolani ulashish')}</span>
           </button>
         </div>
 
@@ -629,7 +631,7 @@ export default function HomePage({
           <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center p-0 sm:p-4 fade-in">
             <div className="bg-white border-t sm:border border-[#E2E8F0] rounded-t-3xl sm:rounded-3xl p-5 w-full max-w-md shadow-2xl text-[#1E293B]">
               <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#E2E8F0]">
-                <h3 className="text-[#0F172A] font-bold text-base">Havolani ulashish</h3>
+                <h3 className="text-[#0F172A] font-bold text-base">{t('Havolani ulashish')}</h3>
                 <button
                   type="button"
                   onClick={() => setIsShareSheetOpen(false)}
@@ -651,29 +653,29 @@ export default function HomePage({
                   style={{ background: 'linear-gradient(135deg, #1E40AF 0%, #3B82F6 100%)' }}
                 >
                   {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copied ? 'Nusxalandi!' : 'Nusxalash'}</span>
+                  <span>{copied ? t('Nusxalandi!') : t('Nusxalash')}</span>
                 </button>
               </div>
 
               {/* Ulashish yo'llari */}
               <div className="grid grid-cols-2 gap-2.5 mb-4">
                 <a
-                  href={`https://t.me/share/url?url=${encodeURIComponent(`https://tarixiy.uz/ref/${referralCode}`)}&text=${encodeURIComponent("Tarixiy ilovasida tarix fanini birga o'rganing va 10% chegirma oling!")}`}
+                  href={`https://t.me/share/url?url=${encodeURIComponent(`https://tarixiy.uz/ref/${referralCode}`)}&text=${encodeURIComponent(t('Tarixiy ilovasida tarix fanini biz bilan birga o‘rganing! 10% chegirma oling.'))}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="py-3 px-3 rounded-2xl bg-[#EFF6FF] border border-[#BFDBFE] text-[#1D4ED8] font-bold text-xs flex items-center justify-center gap-2 hover:bg-[#DBEAFE] transition"
                 >
                   <Send className="w-4 h-4 text-[#2563EB]" />
-                  <span>Telegram</span>
+                  <span>{t('Telegram')}</span>
                 </a>
                 <a
-                  href={`https://api.whatsapp.com/send?text=${encodeURIComponent(`Tarixiy ilovasida tarix fanini birga o'rganing: https://tarixiy.uz/ref/${referralCode}`)}`}
+                  href={`https://api.whatsapp.com/send?text=${encodeURIComponent(`${t('Tarixiy ilovasida tarix fanini biz bilan birga o‘rganing! 10% chegirma oling.')} https://tarixiy.uz/ref/${referralCode}`)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="py-3 px-3 rounded-2xl bg-[#ECFDF5] border border-[#A7F3D0] text-[#047857] font-bold text-xs flex items-center justify-center gap-2 hover:bg-[#D1FAE5] transition"
                 >
                   <Share2 className="w-4 h-4 text-[#059669]" />
-                  <span>WhatsApp</span>
+                  <span>{t('WhatsApp')}</span>
                 </a>
               </div>
 
@@ -682,7 +684,7 @@ export default function HomePage({
                 onClick={() => setIsShareSheetOpen(false)}
                 className="w-full py-3 rounded-xl bg-[#F1F5F9] hover:bg-[#E2E8F0] text-[#64748B] hover:text-[#0F172A] text-xs font-semibold transition"
               >
-                Yopish
+                {t('Yopish')}
               </button>
             </div>
           </div>
@@ -729,15 +731,15 @@ export default function HomePage({
           >
             <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
-          <h1 className="text-lg sm:text-xl font-bold text-[#0F172A]">Saqlangan</h1>
+          <h1 className="text-lg sm:text-xl font-bold text-[#0F172A]">{t('Saqlangan')}</h1>
         </div>
         <div className="flex-1 flex flex-col items-center justify-center text-center p-4 sm:p-6">
           <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[#F0F9FF] border border-[#BAE6FD] flex items-center justify-center text-[#0284C7] mb-4 shadow-sm">
             <Bookmark className="w-7 h-7 sm:w-8 sm:h-8" />
           </div>
-          <h2 className="text-base sm:text-lg font-bold text-[#0F172A] mb-1">Saqlangan mavzular</h2>
+          <h2 className="text-base sm:text-lg font-bold text-[#0F172A] mb-1">{t('Saqlangan mavzular')}</h2>
           <p className="text-[11px] sm:text-xs text-[#64748B] max-w-xs">
-            Hozircha hech qanday dars yoki manba saqlanmagan.
+            {t('Hozircha hech qanday dars yoki manba saqlanmagan.')}
           </p>
         </div>
       </div>
@@ -760,7 +762,7 @@ export default function HomePage({
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="text-lg sm:text-xl font-bold text-[#0F172A]">{currentBtn?.title}</h1>
+          <h1 className="text-lg sm:text-xl font-bold text-[#0F172A]">{t(currentBtn?.title)}</h1>
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-center text-center p-4 sm:p-6">
@@ -769,9 +771,9 @@ export default function HomePage({
           >
             {BtnIcon && <BtnIcon className="w-8 h-8 sm:w-10 sm:h-10" />}
           </div>
-          <h2 className="text-base sm:text-lg font-bold text-[#0F172A] mb-1">{currentBtn?.title}</h2>
+          <h2 className="text-base sm:text-lg font-bold text-[#0F172A] mb-1">{t(currentBtn?.title)}</h2>
           <p className="text-[11px] sm:text-xs text-[#64748B] max-w-xs">
-            Bu bo'lim hozirda tayyorlanmoqda. Tez orada yangi kontent qo'shiladi.
+            {t('Bu bo‘lim hozirda tayyorlanmoqda...')}
           </p>
         </div>
 
@@ -781,7 +783,7 @@ export default function HomePage({
           className="mt-4 w-full py-3.5 rounded-xl text-white font-bold text-sm transition shadow-lg active:scale-98 cursor-pointer"
           style={{ background: currentBtn?.gradient }}
         >
-          Bosh sahifaga qaytish
+          {t('Bosh sahifaga qaytish')}
         </button>
       </div>
     );
@@ -811,7 +813,7 @@ export default function HomePage({
             {/* Support Chat button */}
             <button
               type="button"
-              aria-label="Xabarlar"
+              aria-label={t('Xabarlar')}
               onClick={() => {
                 setActiveSubPage('suhbatlar');
                 window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
@@ -825,7 +827,7 @@ export default function HomePage({
             {/* Referral / Bell button */}
             <button
               type="button"
-              aria-label="Bildirishnomalar"
+              aria-label={t('Bildirishnomalar')}
               onClick={() => {
                 setActiveSubPage('referral-page');
                 window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
@@ -859,10 +861,10 @@ export default function HomePage({
               <div className="absolute -right-6 -top-6 w-20 h-20 rounded-full bg-white/10 pointer-events-none" />
               <div className="relative min-w-0 flex-1 mr-3">
                 <h2 className="text-white font-extrabold text-[16px] sm:text-[18px] leading-tight">
-                  Vazifa bajarib tanga oling
+                  {t('Vazifa bajarib tanga oling')}
                 </h2>
                 <p className="text-white/80 text-[11px] sm:text-xs mt-0.5 leading-tight truncate">
-                  Dars va testlarni bajarib darajangizni oshiring!
+                  {t('Dars va testlarni bajarib darajangizni oshiring!')}
                 </p>
               </div>
               <div className="relative flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-white/15 border border-white/20 shrink-0 shadow-inner">
@@ -880,13 +882,13 @@ export default function HomePage({
               <div className="relative min-w-0 flex-1 mr-3">
                 <div className="inline-flex items-center gap-1 text-amber-300 text-[9px] font-bold uppercase tracking-wider">
                   <Crown className="w-2.5 h-2.5" />
-                  <span>Premium Obuna</span>
+                  <span>{t('Premium Obuna')}</span>
                 </div>
                 <h2 className="text-white font-bold text-[14px] sm:text-[15px] leading-tight mt-0.5">
-                  Barcha dars va testlarni oching!
+                  {t('Barcha dars va testlarni oching!')}
                 </h2>
                 <p className="text-white/80 text-[10px] sm:text-[11px] leading-tight mt-0.5 truncate">
-                  Cheksiz imkoniyatlar va maxsus materiallar
+                  {t('Cheksiz imkoniyatlar va maxsus materiallar')}
                 </p>
               </div>
               <div className="relative flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-amber-400/20 border border-amber-300/40 shrink-0 shadow-md">
@@ -902,13 +904,13 @@ export default function HomePage({
               <div className="absolute -right-6 -top-6 w-20 h-20 rounded-full bg-white/10 pointer-events-none" />
               <div className="relative min-w-0 flex-1 mr-2">
                 <div className="text-amber-200 text-[9px] font-bold uppercase tracking-wider">
-                  Sizga 50% CHEGIRMA!
+                  {t('Sizga 50% CHEGIRMA!')}
                 </div>
                 <div className="text-white font-black text-[13px] sm:text-[14px] leading-tight">
-                  Birinchi oy: 150,000 UZS
+                  {t('Birinchi oy: 150,000 UZS')}
                 </div>
                 <div className="flex items-center gap-1 mt-0.5">
-                  <span className="text-[10px] text-white/85">Kod:</span>
+                  <span className="text-[10px] text-white/85">{t('Kod:')}</span>
                   <span className="px-1.5 py-0.2 bg-black/25 border border-white/20 rounded font-mono font-bold text-[10px] text-yellow-300">
                     TARIX50
                   </span>
@@ -927,10 +929,10 @@ export default function HomePage({
                   {promoCopied ? (
                     <>
                       <Check className="w-3 h-3 text-emerald-600" />
-                      <span>Nusxalandi!</span>
+                      <span>{t('Nusxalandi!')}</span>
                     </>
                   ) : (
-                    <span>FOYDALANISH</span>
+                    <span>{t('FOYDALANISH')}</span>
                   )}
                 </button>
               </div>
@@ -949,13 +951,13 @@ export default function HomePage({
               <div className="absolute -right-6 -bottom-6 w-20 h-20 rounded-full bg-white/10 pointer-events-none" />
               <div className="relative min-w-0 flex-1 mr-2">
                 <div className="text-white font-extrabold text-[13px] sm:text-[14px] leading-tight truncate">
-                  DO'STLARNI TAKLIF QIL
+                  {t('DO‘STLARNI TAKLIF QIL')}
                 </div>
                 <div className="text-teal-100 text-[10px] font-medium leading-tight mt-0.5">
-                  Do'stlarni taklif qilib 100 tanga olasiz
+                  {t('Do‘stlarni taklif qilib 100 tanga olasiz')}
                 </div>
                 <div className="inline-flex items-center text-emerald-200 font-bold text-[11px]">
-                  <span>• Siz: +100 tanga olasiz</span>
+                  <span>• {t('Siz: +100 tanga olasiz')}</span>
                 </div>
               </div>
               <div className="relative shrink-0">
@@ -969,7 +971,7 @@ export default function HomePage({
                   }}
                   className="px-2 py-1.5 rounded-lg bg-white active:scale-95 text-[#0F766E] font-bold text-[10px] sm:text-[11px] shadow-sm transition-all cursor-pointer border border-teal-200"
                 >
-                  <span>DO'STLARNI TAKLIF QIL</span>
+                  <span>{t('DO‘STLARNI TAKLIF QIL')}</span>
                 </button>
               </div>
             </div>
@@ -982,10 +984,10 @@ export default function HomePage({
               <div className="absolute -right-6 -top-6 w-20 h-20 rounded-full bg-white/10 pointer-events-none" />
               <div className="relative min-w-0 flex-1 mr-3">
                 <h2 className="text-white font-extrabold text-[16px] sm:text-[18px] leading-tight">
-                  Vazifa bajarib tanga oling
+                  {t('Vazifa bajarib tanga oling')}
                 </h2>
                 <p className="text-white/80 text-[11px] sm:text-xs mt-0.5 leading-tight truncate">
-                  Dars va testlarni bajarib darajangizni oshiring!
+                  {t('Dars va testlarni bajarib darajangizni oshiring!')}
                 </p>
               </div>
               <div className="relative flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-white/15 border border-white/20 shrink-0 shadow-inner">
@@ -1003,7 +1005,7 @@ export default function HomePage({
                 <button
                   key={idx}
                   type="button"
-                  aria-label={`Slayd ${idx + 1}`}
+                  aria-label={t('Slayd {slide}', { slide: idx + 1 })}
                   onClick={() => {
                     setIsTransitionEnabled(true);
                     setCarouselIndex(idx);
@@ -1037,7 +1039,7 @@ export default function HomePage({
             <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-[#FFF7ED] to-[#FFEDD5] border border-[#FED7AA] flex items-center justify-center mb-1.5 sm:mb-2 text-[#EA580C] group-hover:scale-110 transition-transform shadow-sm">
               <Users className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <span className="text-[10px] sm:text-xs font-bold text-[#1E293B] leading-tight">Referal</span>
+            <span className="text-[10px] sm:text-xs font-bold text-[#1E293B] leading-tight">{t('Referal')}</span>
           </button>
 
           {/* 2. Magazin */}
@@ -1052,7 +1054,7 @@ export default function HomePage({
             <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-[#FEF3C7] to-[#FDE68A] border border-[#FCD34D] flex items-center justify-center mb-1.5 sm:mb-2 text-[#D97706] group-hover:scale-110 transition-transform shadow-sm">
               <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <span className="text-[10px] sm:text-xs font-bold text-[#1E293B] leading-tight">Magazin</span>
+            <span className="text-[10px] sm:text-xs font-bold text-[#1E293B] leading-tight">{t('Magazin')}</span>
           </button>
 
           {/* 3. Saqlangan */}
@@ -1067,7 +1069,7 @@ export default function HomePage({
             <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-[#F0F9FF] to-[#E0F2FE] border border-[#BAE6FD] flex items-center justify-center mb-1.5 sm:mb-2 text-[#0284C7] group-hover:scale-110 transition-transform shadow-sm">
               <Bookmark className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <span className="text-[10px] sm:text-xs font-bold text-[#1E293B] leading-tight">Saqlangan</span>
+            <span className="text-[10px] sm:text-xs font-bold text-[#1E293B] leading-tight">{t('Saqlangan')}</span>
           </button>
 
         </div>
@@ -1111,7 +1113,7 @@ export default function HomePage({
                 </div>
 
                 <h3 className="font-black text-[18px] sm:text-[21px] tracking-[0.08em] uppercase truncate select-none leading-none text-white">
-                  {btn.title}
+                  {t(btn.title)}
                 </h3>
               </div>
 
@@ -1141,7 +1143,7 @@ export default function HomePage({
                 <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-[#FFF7ED] flex items-center justify-center text-[#EA580C]">
                   <Gift className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </div>
-                <h3 className="text-base sm:text-lg font-bold text-[#0F172A]">Do'st taklif qilish</h3>
+                <h3 className="text-base sm:text-lg font-bold text-[#0F172A]">{t("Do'st taklif qilish")}</h3>
               </div>
               <button
                 type="button"
@@ -1153,7 +1155,7 @@ export default function HomePage({
             </div>
 
             <p className="text-[11px] sm:text-xs text-[#64748B] leading-relaxed mb-4 sm:mb-5">
-              Do'stlaringizga o'z taklif havolangizni yuboring. Ular ro'yxatdan o'tganda ikkingizga ham <strong className="text-[#D97706]">+100 XP</strong> beriladi!
+              {t("Do'stlaringizga o'z taklif havolangizni yuboring. Ular ro'yxatdan o'tganda ikkingizga ham")} <strong className="text-[#D97706]">+100 XP</strong> {t('beriladi!')}
             </p>
 
             {/* Havola nusxalash qatori */}
@@ -1167,7 +1169,7 @@ export default function HomePage({
                 className="px-2.5 sm:px-3 py-1.5 rounded-lg sm:rounded-xl bg-[#E8B84B] hover:bg-[#D4A437] text-[#0C0F18] text-[10px] sm:text-xs font-bold transition flex items-center gap-1 shrink-0 cursor-pointer shadow-sm"
               >
                 {copied ? <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> : <Copy className="w-3 h-3 sm:w-3.5 sm:h-3.5" />}
-                <span>{copied ? 'Nusxalandi' : 'Nusxalash'}</span>
+                <span>{copied ? t('Nusxalandi') : t('Nusxalash')}</span>
               </button>
             </div>
 
@@ -1176,7 +1178,7 @@ export default function HomePage({
               onClick={() => setIsReferralModalOpen(false)}
               className="w-full py-2.5 sm:py-3 rounded-xl bg-[#F1F5F9] text-[#1E293B] text-[11px] sm:text-xs font-bold hover:bg-[#E2E8F0] transition cursor-pointer"
             >
-              Yopish
+              {t('Yopish')}
             </button>
           </div>
         </div>

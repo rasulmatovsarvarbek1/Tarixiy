@@ -7,18 +7,101 @@ import ProfilePage from './pages/ProfilePage';
 import BottomNav from './components/layout/BottomNav';
 import { dashboardData } from './data/dashboardData';
 import AdminPage from './pages/AdminPage';
+import { preloadAdminDataForSession } from './lib/lessons';
+import { LanguageProvider } from './lib/language';
+import Onboarding from './components/Onboarding';
+import { supabase } from './lib/supabase';
 
-export default function App() {
-  if (window.location.pathname.startsWith('/admin')) {
-    return <AdminPage />;
+const APP_THEME_STORAGE_KEY = 'tarixiy:display-theme';
+const APP_THEMES = ['system', 'light'];
+
+function getInitialAppTheme() {
+  try {
+    const savedTheme = window.localStorage.getItem(APP_THEME_STORAGE_KEY);
+    return APP_THEMES.includes(savedTheme) ? savedTheme : 'light';
+  } catch {
+    return 'light';
   }
-  return <MainApp />;
 }
 
-function MainApp() {
-  const [appState, setAppState] = useState(() => (
-    window.location.pathname === '/home' ? 'app' : 'register'
-  ));
+export default function App() {
+  useEffect(() => {
+    void preloadAdminDataForSession();
+  }, []);
+
+  return (
+    <LanguageProvider>
+      {window.location.pathname.startsWith('/admin') ? <AdminPage /> : <AppEntry />}
+    </LanguageProvider>
+  );
+}
+
+function AppEntry() {
+  const [entryState, setEntryState] = useState('checking');
+
+  useEffect(() => {
+    if (entryState !== 'checking') return undefined;
+    let active = true;
+
+    const resolveEntryState = async () => {
+      try {
+        if (supabase) {
+          const { data, error } = await supabase.auth.getSession();
+          if (error) throw error;
+          if (data.session) {
+            if (active) setEntryState('app');
+            return;
+          }
+        }
+
+        const onboardingSeen = window.localStorage.getItem('onboarding_seen') === '1';
+        if (active) {
+          setEntryState(onboardingSeen
+            ? window.location.pathname === '/home' ? 'app' : 'register'
+            : 'onboarding');
+        }
+      } catch (error) {
+        console.error('Kirish holatini tekshirib bo‘lmadi:', error);
+        if (!active) return;
+        try {
+          const onboardingSeen = window.localStorage.getItem('onboarding_seen') === '1';
+          setEntryState(onboardingSeen
+            ? window.location.pathname === '/home' ? 'app' : 'register'
+            : 'onboarding');
+        } catch (storageError) {
+          console.error('Onboarding holatini o‘qib bo‘lmadi:', storageError);
+          setEntryState('onboarding');
+        }
+      }
+    };
+
+    void resolveEntryState();
+    return () => {
+      active = false;
+    };
+  }, [entryState]);
+
+  const finishOnboarding = () => {
+    try {
+      window.localStorage.setItem('onboarding_seen', '1');
+    } catch (error) {
+      console.error('Onboarding holatini saqlab bo‘lmadi:', error);
+    }
+    setEntryState('register');
+  };
+
+  if (entryState === 'checking') {
+    return <main className="min-h-dvh bg-white" aria-busy="true" />;
+  }
+  if (entryState === 'onboarding') {
+    return <Onboarding onComplete={finishOnboarding} />;
+  }
+
+  return <MainApp initialState={entryState} />;
+}
+
+function MainApp({ initialState }) {
+  const [appState, setAppState] = useState(initialState);
   const [activeTab, setActiveTab] = useState('home');
   const [homeSubPage, setHomeSubPage] = useState(null);
   const [profileSubPage, setProfileSubPage] = useState('main');
@@ -29,6 +112,16 @@ function MainApp() {
     gradeLevel: 7,
     track: 'full_history',
   });
+  const [appTheme, setAppTheme] = useState(getInitialAppTheme);
+
+  useEffect(() => {
+    document.documentElement.dataset.appTheme = appTheme;
+    try {
+      window.localStorage.setItem(APP_THEME_STORAGE_KEY, appTheme);
+    } catch {
+      // Theme remains active for this session when storage is unavailable.
+    }
+  }, [appTheme]);
 
   const scrollContainerRef = useRef(null);
 
@@ -127,6 +220,8 @@ function MainApp() {
                   onUpdateUserData={setUserData}
                   currentPage={profileSubPage}
                   setCurrentPage={setProfileSubPage}
+                  appTheme={appTheme}
+                  onAppThemeChange={setAppTheme}
                   onLogout={() => {
                     setAppState('register');
                     setActiveTab('home');
