@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useSyncExternalStore } from 'react';
 import { Lock, Sparkles, AlertCircle, DoorClosed } from 'lucide-react';
 import BookReader from '../components/BookReader';
 import {
@@ -12,9 +12,11 @@ import {
 } from '../lib/lessons';
 import {
   getCompleted,
+  getLastReadLevelId,
   saveCompleted,
 } from '../lib/readerStorage';
 import { useLanguage } from '../lib/language';
+import { subscribeToFaollik, getFaollikSnapshot } from '../lib/faollik';
 
 // SVG 4-burchakli yulduz (#FFD800)
 function GoldenStar({ size = 24, className = "" }) {
@@ -111,8 +113,10 @@ function ClassGatePortal({ gradeNumber, gradeTitle }) {
   );
 }
 
-export default function RoadmapPage({ onNavigate, onLevelOpenChange }) {
+export default function RoadmapPage({ onNavigate, onLevelOpenChange, resumeActionRef }) {
   const { t } = useLanguage();
+  const faollikSnapshot = useSyncExternalStore(subscribeToFaollik, getFaollikSnapshot, getFaollikSnapshot);
+  const tangaBalance = Number(faollikSnapshot.holat?.tanga) || 0;
   const [toast, setToast] = useState(null);
   const [shakingId, setShakingId] = useState(null);
   const [levels, setLevels] = useState(() => getCachedLevels());
@@ -192,6 +196,26 @@ export default function RoadmapPage({ onNavigate, onLevelOpenChange }) {
     onLevelOpenChange?.(false);
   };
 
+  const resumeLastRead = useCallback(() => {
+    if (selectedLevel) return;
+    const lastReadLevelId = getLastReadLevelId();
+    const level = roadmapLevels.find((item) => String(item.id) === String(lastReadLevelId))
+      || roadmapLevels[0];
+    if (!level) return;
+    setSelectedLevel(level);
+    setReaderLevel(getCachedLevel(level.id));
+    setReaderError('');
+    onLevelOpenChange?.(true);
+  }, [roadmapLevels, selectedLevel, onLevelOpenChange]);
+
+  useEffect(() => {
+    if (!resumeActionRef) return undefined;
+    resumeActionRef.current = resumeLastRead;
+    return () => {
+      if (resumeActionRef.current === resumeLastRead) resumeActionRef.current = null;
+    };
+  }, [resumeActionRef, resumeLastRead]);
+
   useEffect(() => {
     if (!selectedLevel) return undefined;
     const cachedLevel = getCachedLevel(selectedLevel.id);
@@ -234,6 +258,12 @@ export default function RoadmapPage({ onNavigate, onLevelOpenChange }) {
     onLevelOpenChange?.(false);
   }, [completedIds, onLevelOpenChange, selectedLevel]);
 
+  useEffect(() => {
+    return () => {
+      onLevelOpenChange?.(false);
+    };
+  }, [onLevelOpenChange]);
+
   if (selectedLevel) {
     if (readerError) {
       return (
@@ -244,7 +274,12 @@ export default function RoadmapPage({ onNavigate, onLevelOpenChange }) {
       );
     }
     if (!readerLevel) {
-      return <div className="flex min-h-screen items-center justify-center bg-white text-sm text-[#6F6A62]">{t('Yuklanmoqda...')}</div>;
+      return (
+        <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-white px-5 text-center text-sm text-[#6F6A62]">
+          <p>{t('Yuklanmoqda...')}</p>
+          <button type="button" onClick={handleClose} className="rounded-xl bg-[#E8B84B] px-4 py-2 font-semibold text-[#2A2A2A]">{t('Orqaga')}</button>
+        </div>
+      );
     }
     if (readerLevel.darslar.length === 0) {
       return (
@@ -325,7 +360,7 @@ export default function RoadmapPage({ onNavigate, onLevelOpenChange }) {
                   <circle cx="12" cy="12" r="6" fill="#FFD54F" />
                   <text x="12" y="16" textAnchor="middle" fontSize="10" fontWeight="bold" fill="#B8860B">$</text>
                 </svg>
-                <span className="text-[13px] font-black text-[#1E293B]">16</span>
+                <span className="text-[13px] font-black text-[#1E293B]">{tangaBalance}</span>
               </button>
             </div>
           </div>

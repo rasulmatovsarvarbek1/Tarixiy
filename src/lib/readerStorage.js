@@ -9,6 +9,7 @@ const KEYS = {
   settings: 'reader:settings',    // { fontSize, fontFamily, bgTheme, brightness, autoTheme }
   unlocked: 'roadmap:unlocked',   // [1, 2, 3, ...]
   completed: 'roadmap:completed', // [1, 2, ...]
+  lastReadLevel: 'roadmap:last-read-level',
 };
 const READER_THEME_IDS = ['white', 'cream', 'gray', 'black'];
 const READER_SETTINGS_VERSION = 2;
@@ -42,6 +43,12 @@ export function saveProgress(levelId, data) {
   const all = read(KEYS.progress, {});
   all[levelId] = data;
   write(KEYS.progress, all);
+  write(KEYS.lastReadLevel, String(levelId));
+}
+
+export function getLastReadLevelId() {
+  const levelId = read(KEYS.lastReadLevel, null);
+  return typeof levelId === 'string' || typeof levelId === 'number' ? levelId : null;
 }
 
 /* ─── SAVED (belgilangan matnlar) ─── */

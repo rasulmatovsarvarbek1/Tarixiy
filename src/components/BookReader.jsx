@@ -29,6 +29,7 @@ import {
 } from '../lib/readerStorage';
 import { normalizeLessonText } from '../lib/lessonText';
 import { useLanguage } from '../lib/language';
+import { qoshFaollik } from '../lib/faollik';
 
 /* ═══════════════════════════════════════ CONSTANTS ═══════════════════════════════════════ */
 
@@ -947,6 +948,16 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
   const touchRef = useRef(null);
   const debounceRef = useRef(null);
   const lastTouchTimeRef = useRef(0);
+  const lastReadingInteractionRef = useRef(0);
+  const pendingReadingSecondsRef = useRef(0);
+  const readingFlushInFlightRef = useRef(false);
+  const readingFlushRequestedRef = useRef(false);
+  const readingFlushCallbackRef = useRef(null);
+  const retryReadingFlushAtRef = useRef(0);
+
+  useEffect(() => {
+    lastReadingInteractionRef.current = Date.now();
+  }, []);
 
   // ─── Settings ───
   const [settings, setSettings] = useState(() => getSettings());
@@ -1156,9 +1167,69 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
 
   // ─── Settings o'zgarganda qayta hisoblash va joyni saqlash ───
   const handleSettingsChange = useCallback((newSettings) => {
+    lastReadingInteractionRef.current = Date.now();
     setSettings(newSettings);
     saveSettings(newSettings);
   }, []);
+
+  const flushReadingSeconds = useCallback(async () => {
+    if (readingFlushInFlightRef.current) {
+      readingFlushRequestedRef.current = true;
+      return;
+    }
+    if (pendingReadingSecondsRef.current < 1
+      || Date.now() < retryReadingFlushAtRef.current) return;
+    const sentSeconds = Math.min(60, pendingReadingSecondsRef.current);
+    pendingReadingSecondsRef.current -= sentSeconds;
+    readingFlushInFlightRef.current = true;
+    try {
+      await qoshFaollik(sentSeconds);
+      retryReadingFlushAtRef.current = 0;
+    } catch (error) {
+      if (error?.message === 'Kirish talab qilinadi') {
+        pendingReadingSecondsRef.current = 0;
+      } else {
+        pendingReadingSecondsRef.current += sentSeconds;
+        retryReadingFlushAtRef.current = Date.now() + 20000;
+        console.error('O‘qish faolligini yuborib bo‘lmadi:', error);
+      }
+    } finally {
+      readingFlushInFlightRef.current = false;
+      if (readingFlushRequestedRef.current && pendingReadingSecondsRef.current > 0) {
+        readingFlushRequestedRef.current = false;
+        window.setTimeout(() => readingFlushCallbackRef.current?.(), 0);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    readingFlushCallbackRef.current = flushReadingSeconds;
+  }, [flushReadingSeconds]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      if (Date.now() - lastReadingInteractionRef.current > 60000) return;
+      pendingReadingSecondsRef.current += 1;
+      if (pendingReadingSecondsRef.current >= 20
+        && Date.now() >= retryReadingFlushAtRef.current) {
+        void flushReadingSeconds();
+      }
+    }, 1000);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        if (pendingReadingSecondsRef.current > 60) readingFlushRequestedRef.current = true;
+        void flushReadingSeconds();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (pendingReadingSecondsRef.current > 60) readingFlushRequestedRef.current = true;
+      void flushReadingSeconds();
+    };
+  }, [flushReadingSeconds]);
 
   // ─── Auto theme ───
   useEffect(() => {
@@ -1198,7 +1269,10 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
   const totalScreens = screens.length;
   const goPrev = useCallback(() => setScreenIndex((i) => Math.max(0, i - 1)), []);
   const goNext = useCallback(
-    () => setScreenIndex((i) => Math.min(Math.max(totalScreens - 1, 0), i + 1)),
+    () => {
+      lastReadingInteractionRef.current = Date.now();
+      setScreenIndex((i) => Math.min(Math.max(totalScreens - 1, 0), i + 1));
+    },
     [totalScreens]
   );
 
@@ -1300,6 +1374,7 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
   }, [hasSelection, panelVisible]);
 
   const onTouchStart = (e) => {
+    lastReadingInteractionRef.current = Date.now();
     if (hasSelection()) return;
     const t = e.touches[0];
     touchRef.current = { x: t.clientX, y: t.clientY, time: Date.now() };
@@ -1316,6 +1391,7 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
     const elapsed = Date.now() - s.time;
 
     if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      lastReadingInteractionRef.current = Date.now();
       if (dx < 0) goNext();
       else goPrev();
       return;
@@ -1459,6 +1535,12 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
     >
       <div
       lang={language}
+      onPointerDownCapture={() => { lastReadingInteractionRef.current = Date.now(); }}
+      onKeyDownCapture={(event) => {
+        if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+          lastReadingInteractionRef.current = Date.now();
+        }
+      }}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
       onClick={onClick}

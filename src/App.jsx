@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useSyncExternalStore } from 'react';
 import RegisterWizard from './components/auth/RegisterWizard';
 import HomePage from './pages/HomePage';
 import RoadmapPage from './pages/RoadmapPage';
@@ -11,6 +11,13 @@ import { preloadAdminDataForSession } from './lib/lessons';
 import { LanguageProvider } from './lib/language';
 import Onboarding from './components/Onboarding';
 import { supabase } from './lib/supabase';
+import FaollikPage from './pages/FaollikPage';
+import { preloadFaollikForSession, subscribeToFaollik, getFaollikSnapshot } from './lib/faollik';
+import SplashScreen from './components/SplashScreen';
+
+function isFaollikPath(pathname) {
+  return pathname === '/faollik' || pathname === '/faollik/kalendar';
+}
 
 const APP_THEME_STORAGE_KEY = 'tarixiy:display-theme';
 const APP_THEMES = ['system', 'light'];
@@ -25,14 +32,19 @@ function getInitialAppTheme() {
 }
 
 export default function App() {
+  const [splash, setSplash] = useState(true);
+
   useEffect(() => {
     void preloadAdminDataForSession();
   }, []);
 
   return (
-    <LanguageProvider>
-      {window.location.pathname.startsWith('/admin') ? <AdminPage /> : <AppEntry />}
-    </LanguageProvider>
+    <>
+      {splash && <SplashScreen onDone={() => setSplash(false)} />}
+      <LanguageProvider>
+        {window.location.pathname.startsWith('/admin') ? <AdminPage /> : <AppEntry />}
+      </LanguageProvider>
+    </>
   );
 }
 
@@ -104,8 +116,15 @@ function MainApp({ initialState }) {
   const [appState, setAppState] = useState(initialState);
   const [activeTab, setActiveTab] = useState('home');
   const [homeSubPage, setHomeSubPage] = useState(null);
+  const [activityPath, setActivityPath] = useState(() => (
+    isFaollikPath(window.location.pathname) ? window.location.pathname : null
+  ));
+  const activityPathRef = useRef(activityPath);
+  const resumeReaderRef = useRef(null);
   const [profileSubPage, setProfileSubPage] = useState('main');
+  const faollikSnapshot = useSyncExternalStore(subscribeToFaollik, getFaollikSnapshot, getFaollikSnapshot);
   const [userCoins, setUserCoins] = useState(16);
+  const currentCoins = faollikSnapshot.holat?.tanga !== undefined ? Number(faollikSnapshot.holat.tanga) : userCoins;
   const [userData, setUserData] = useState({
     fullName: dashboardData.userName,
     phone: '+998 90 123-45-67',
@@ -113,6 +132,27 @@ function MainApp({ initialState }) {
     track: 'full_history',
   });
   const [appTheme, setAppTheme] = useState(getInitialAppTheme);
+
+  useEffect(() => {
+    if (appState === 'app') void preloadFaollikForSession();
+  }, [appState]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const pathname = window.location.pathname;
+      if (isFaollikPath(pathname)) {
+        activityPathRef.current = pathname;
+        setActivityPath(pathname);
+      } else if (activityPathRef.current) {
+        activityPathRef.current = null;
+        setActivityPath(null);
+        setActiveTab('home');
+        setHomeSubPage(null);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   useEffect(() => {
     document.documentElement.dataset.appTheme = appTheme;
@@ -130,7 +170,7 @@ function MainApp({ initialState }) {
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTop = 0;
     }
-  }, [activeTab, homeSubPage, profileSubPage]);
+  }, [activeTab, homeSubPage, profileSubPage, activityPath]);
 
   const handleRegistrationComplete = (data) => {
     setUserData(data);
@@ -140,22 +180,41 @@ function MainApp({ initialState }) {
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
-    if (tab === 'home') {
-      // Agar pastdagi home tugmasi bosilsa, sub-page yopiladi
-      setHomeSubPage(null);
-    } else if (tab === 'profile') {
-      // Agar pastdagi profil tugmasi bosilsa, asosiy profil sahifasiga qaytadi
-      setProfileSubPage('main');
+    setHomeSubPage(null);
+    setProfileSubPage('main');
+    setIsLessonOpen(false);
+    if (activityPathRef.current) {
+      activityPathRef.current = null;
+      setActivityPath(null);
+      if (window.location.pathname !== '/home') {
+        window.history.pushState(null, '', '/home');
+      }
     }
+  };
+
+  const navigateActivity = (path) => {
+    const nextPath = isFaollikPath(path) ? path : null;
+    const destination = nextPath || '/home';
+    if (window.location.pathname !== destination) {
+      window.history.pushState({ activityPath: nextPath }, '', destination);
+    }
+    activityPathRef.current = nextPath;
+    setActivityPath(nextPath);
+    setActiveTab('home');
+    setHomeSubPage(null);
+  };
+
+  const continueReading = () => {
+    navigateActivity('/home');
+    setActiveTab('lessons');
+    resumeReaderRef.current?.();
   };
 
   const [isLessonOpen, setIsLessonOpen] = useState(false);
 
-  // Faqat asosiy 4 ta sahifada (Bosh sahifa, Darslar, Resurslar, Profil) pastdagi navbar ko'rinadi.
-  // Har qanday sub-page yoki dars ochilganda navbar YASHIRILADI!
-  const isHomeSubPage = activeTab === 'home' && homeSubPage !== null;
-  const isProfileSubPage = activeTab === 'profile' && profileSubPage !== 'main';
-  const shouldHideBottomNav = isHomeSubPage || isProfileSubPage || isLessonOpen;
+  // Faqat darslik o'qilayotganda (BookReader) pastdagi navbar yashiriladi.
+  // Boshqa barcha sahifalar va bo'limlarda navbar DOIMO ko'rinadi!
+  const shouldHideBottomNav = isLessonOpen;
 
   return (
     <div className="min-h-screen bg-[#F1F5F9] text-[#1E293B] flex justify-center selection:bg-[#E8B84B] selection:text-[#0D1117]">
@@ -175,14 +234,15 @@ function MainApp({ initialState }) {
             <main ref={scrollContainerRef} className={`flex-1 ${shouldHideBottomNav ? 'pb-0' : 'pb-20'} bg-white relative overflow-y-auto`}>
 
               {/* HOME */}
-              <div key={`home-${activeTab}`} style={{ display: activeTab === 'home' ? 'block' : 'none' }} className="page-transition book-page">
+              <div key={`home-${activeTab}`} style={{ display: activeTab === 'home' && !activityPath ? 'block' : 'none' }} className="page-transition book-page">
                 <HomePage
                   userData={userData}
                   onNavigateTab={handleTabChange}
                   activeSubPage={homeSubPage}
                   setActiveSubPage={setHomeSubPage}
-                  userCoins={userCoins}
+                  userCoins={currentCoins}
                   setUserCoins={setUserCoins}
+                  onNavigateActivity={navigateActivity}
                   onNavigatePremium={() => {
                     setActiveTab('profile');
                     setProfileSubPage('premium');
@@ -191,9 +251,10 @@ function MainApp({ initialState }) {
               </div>
 
               {/* LESSONS */}
-              <div key={`lessons-${activeTab}`} style={{ display: activeTab === 'lessons' ? 'block' : 'none' }} className="page-transition book-page">
+              <div key={`lessons-${activeTab}`} style={{ display: activeTab === 'lessons' && !activityPath ? 'block' : 'none' }} className="page-transition book-page">
                 <RoadmapPage
                   onLevelOpenChange={setIsLessonOpen}
+                  resumeActionRef={resumeReaderRef}
                   onNavigate={(dest) => {
                     if (dest === 'magazin') {
                       setActiveTab('home');
@@ -209,12 +270,12 @@ function MainApp({ initialState }) {
               </div>
 
               {/* RESOURCES / MORE */}
-              <div key={`resources-${activeTab}`} style={{ display: (activeTab === 'resources' || activeTab === 'more') ? 'block' : 'none' }} className="page-transition book-page">
+              <div key={`resources-${activeTab}`} style={{ display: !activityPath && (activeTab === 'resources' || activeTab === 'more') ? 'block' : 'none' }} className="page-transition book-page">
                 <ResourcesPage />
               </div>
 
               {/* PROFILE */}
-              <div key={`profile-${activeTab}`} style={{ display: activeTab === 'profile' ? 'block' : 'none' }} className="page-transition book-page">
+              <div key={`profile-${activeTab}`} style={{ display: activeTab === 'profile' && !activityPath ? 'block' : 'none' }} className="page-transition book-page">
                 <ProfilePage
                   userData={userData}
                   onUpdateUserData={setUserData}
@@ -231,6 +292,14 @@ function MainApp({ initialState }) {
                   }}
                 />
               </div>
+
+              {activityPath && (
+                <FaollikPage
+                  route={activityPath}
+                  onNavigate={navigateActivity}
+                  onContinueReading={continueReading}
+                />
+              )}
 
             </main>
 

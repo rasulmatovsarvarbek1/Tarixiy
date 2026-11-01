@@ -19,6 +19,8 @@ import {
   createLevel,
   clearAdminData,
   deleteLesson,
+  deleteLevel,
+  deleteSinf,
   ensureLevelLessons,
   getAdminDataError,
   getCachedAdminLevels,
@@ -88,6 +90,71 @@ function AdminSkeleton({ rows = 3 }) {
   );
 }
 
+function DeleteConfirmModal({ target, isDeleting, error, onClose, onConfirm }) {
+  if (!target) return null;
+
+  let message = '';
+  if (target.type === 'level') {
+    const count = target.lessonCount ?? 0;
+    message = `«${target.nom}» Leveli va uning ${count} ta darsi o'chiriladi. Haqiqatan ham o'chirmoqchimisiz?`;
+  } else if (target.type === 'sinf') {
+    const hasCounts = typeof target.totalLevels === 'number' && typeof target.totalLessons === 'number' && target.totalLevels > 0;
+    message = hasCounts
+      ? `${target.sinf}-sinf, uning ${target.totalLevels} ta Leveli va ${target.totalLessons} ta darsi o'chiriladi. Haqiqatan ham o'chirmoqchimisiz?`
+      : `${target.sinf}-sinf o'chiriladi. Haqiqatan ham o'chirmoqchimisiz?`;
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[1000005] flex items-center justify-center bg-black/40 p-4 backdrop-blur-[1px]"
+      onClick={!isDeleting ? onClose : undefined}
+    >
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="delete-dialog-title"
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-sm rounded-2xl border border-[#E9E2D8] bg-white p-5 text-center shadow-2xl min-[375px]:p-6"
+      >
+        <div className="mx-auto mb-3.5 flex h-12 w-12 items-center justify-center rounded-2xl bg-red-100 text-red-600">
+          <Trash2 size={24} aria-hidden="true" />
+        </div>
+        <h2 id="delete-dialog-title" className="text-lg font-bold text-[#2A2A2A]">
+          O‘chirishni tasdiqlang
+        </h2>
+        <p className="mt-2 text-sm leading-relaxed text-[#514B43]">
+          {message}
+        </p>
+
+        {error && (
+          <p role="alert" className="mt-3.5 rounded-xl bg-red-50 p-3 text-xs font-medium text-red-700">
+            {error}
+          </p>
+        )}
+
+        <div className="mt-6 flex gap-3">
+          <button
+            type="button"
+            disabled={isDeleting}
+            onClick={onClose}
+            className={SECONDARY + ' flex-1'}
+          >
+            Yo‘q
+          </button>
+          <button
+            type="button"
+            disabled={isDeleting}
+            onClick={onConfirm}
+            className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isDeleting ? 'O‘chirilmoqda...' : 'Ha'}
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function AdminHome({ navigate }) {
   const [levels, setLevels] = useState(() => getCachedAdminLevels());
   const [isLoading, setIsLoading] = useState(() => !getCachedAdminLevels());
@@ -98,6 +165,160 @@ function AdminHome({ navigate }) {
   const [busy, setBusy] = useState(false);
   const [operationMessage, setOperationMessage] = useState('');
   const [importResult, setImportResult] = useState(null);
+
+  // Deletion modal state
+  const [deleteModal, setDeleteModal] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteModalError, setDeleteModalError] = useState('');
+
+  // Active delete icon on card (shown on long-press)
+  const [activeDeleteId, setActiveDeleteId] = useState(null);
+  const autoHideTimerRef = useRef(null);
+  const longPressTimerRef = useRef(null);
+  const pointerStartPosRef = useRef({ x: 0, y: 0 });
+  const didLongPressRef = useRef(false);
+
+  const clearAutoHideTimer = useCallback(() => {
+    if (autoHideTimerRef.current) {
+      clearTimeout(autoHideTimerRef.current);
+      autoHideTimerRef.current = null;
+    }
+  }, []);
+
+  const handleLongPressTriggered = useCallback((id) => {
+    didLongPressRef.current = true;
+    setActiveDeleteId(id);
+    clearAutoHideTimer();
+    autoHideTimerRef.current = setTimeout(() => {
+      setActiveDeleteId((curr) => (curr === id ? null : curr));
+    }, 4000);
+  }, [clearAutoHideTimer]);
+
+  const handlePointerDown = useCallback((e, id) => {
+    if (e.button !== undefined && e.button !== 0) return;
+    didLongPressRef.current = false;
+    pointerStartPosRef.current = { x: e.clientX, y: e.clientY };
+
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+    longPressTimerRef.current = setTimeout(() => {
+      handleLongPressTriggered(id);
+    }, 500);
+  }, [handleLongPressTriggered]);
+
+  const handlePointerMove = useCallback((e) => {
+    if (!longPressTimerRef.current) return;
+    const dist = Math.hypot(
+      e.clientX - pointerStartPosRef.current.x,
+      e.clientY - pointerStartPosRef.current.y
+    );
+    if (dist > 8) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }, []);
+
+  const handlePointerCancel = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }, []);
+
+  // Cancel on scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
+      }
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+      clearAutoHideTimer();
+    };
+  }, [clearAutoHideTimer]);
+
+  // Click outside to dismiss active delete button
+  useEffect(() => {
+    if (!activeDeleteId) return undefined;
+    const handlePointerDownOutside = (e) => {
+      const card = e.target?.closest?.(`[data-delete-card="${activeDeleteId}"]`);
+      if (!card) {
+        setActiveDeleteId(null);
+        clearAutoHideTimer();
+      }
+    };
+    window.addEventListener('pointerdown', handlePointerDownOutside);
+    return () => window.removeEventListener('pointerdown', handlePointerDownOutside);
+  }, [activeDeleteId, clearAutoHideTimer]);
+
+  const handleLevelCardClick = useCallback((e, level, cardId) => {
+    if (didLongPressRef.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      didLongPressRef.current = false;
+      return;
+    }
+    if (activeDeleteId === cardId) {
+      e.preventDefault();
+      e.stopPropagation();
+      setActiveDeleteId(null);
+      clearAutoHideTimer();
+      return;
+    }
+    navigate(`/admin/level/${encodeURIComponent(level.id)}`);
+  }, [activeDeleteId, clearAutoHideTimer, navigate]);
+
+  const openLevelDeleteModal = useCallback((level) => {
+    setActiveDeleteId(null);
+    clearAutoHideTimer();
+    setDeleteModalError('');
+    setDeleteModal({
+      type: 'level',
+      levelId: level.id,
+      nom: level.nom,
+      lessonCount: level.darslar?.length || 0,
+    });
+  }, [clearAutoHideTimer]);
+
+  const openSinfDeleteModal = useCallback((group) => {
+    setActiveDeleteId(null);
+    clearAutoHideTimer();
+    setDeleteModalError('');
+    setDeleteModal({
+      type: 'sinf',
+      sinf: group.sinf,
+      totalLevels: group.totalLevels,
+      totalLessons: group.totalLessons,
+    });
+  }, [clearAutoHideTimer]);
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModal || isDeleting) return;
+    setIsDeleting(true);
+    setDeleteModalError('');
+
+    try {
+      if (deleteModal.type === 'level') {
+        await deleteLevel(deleteModal.levelId);
+        setLevels((prev) => (prev ? prev.filter((item) => item.id !== deleteModal.levelId) : null));
+      } else if (deleteModal.type === 'sinf') {
+        await deleteSinf(deleteModal.sinf);
+        setLevels((prev) => (prev ? prev.filter((item) => item.sinf !== deleteModal.sinf) : null));
+      }
+      setDeleteModal(null);
+      setOperationMessage('O‘chirildi');
+      setTimeout(() => {
+        setOperationMessage((msg) => (msg === 'O‘chirildi' ? '' : msg));
+      }, 3000);
+    } catch (reason) {
+      setDeleteModalError("O'chirib bo'lmadi, qayta urinib ko'ring");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const refreshLevels = useCallback(async () => {
     setError('');
@@ -178,6 +399,28 @@ function AdminHome({ navigate }) {
     }
   };
 
+  const sinfGroups = React.useMemo(() => {
+    if (!levels || levels.length === 0) return [];
+    const map = new Map();
+    levels.forEach((lvl) => {
+      const s = Number(lvl.sinf) || 0;
+      if (!map.has(s)) map.set(s, []);
+      map.get(s).push(lvl);
+    });
+    const sortedSinfs = Array.from(map.keys()).sort((a, b) => a - b);
+    return sortedSinfs.map((sinf) => {
+      const sinfLevels = map.get(sinf);
+      sinfLevels.sort((a, b) => (a.tartib || 0) - (b.tartib || 0));
+      const totalLessons = sinfLevels.reduce((sum, l) => sum + (l.darslar?.length || 0), 0);
+      return {
+        sinf,
+        levels: sinfLevels,
+        totalLevels: sinfLevels.length,
+        totalLessons,
+      };
+    });
+  }, [levels]);
+
   return (
     <div className={PAGE_BG + ' min-h-screen'}>
       <AdminHeader navigate={navigate} backPath="/" title="Levellar" />
@@ -214,27 +457,133 @@ function AdminHome({ navigate }) {
         )}
         {!levels && loading && <AdminSkeleton rows={4} />}
         {levels?.length === 0 && <p className="rounded-xl bg-white p-6 text-center text-[#6F6A62]">Hozircha levellar mavjud emas.</p>}
-        {levels && levels.length > 0 && (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {levels.map((level) => (
-                <button
-                  type="button"
-                  key={level.id}
-                  onClick={() => navigate(`/admin/level/${encodeURIComponent(level.id)}`)}
-                  className="min-w-0 rounded-2xl border border-[#E9E2D8] bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#E8B84B] hover:shadow-md min-[375px]:p-5"
-                >
-                  <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl bg-[#FBF2DB] text-[#9A7A3B]">
-                    <BookOpen size={22} />
+        {sinfGroups.length > 0 && (
+          <div className="space-y-6">
+            {sinfGroups.map((group) => {
+              const sinfCardId = `sinf-${group.sinf}`;
+              const isSinfDeleteActive = activeDeleteId === sinfCardId;
+              return (
+                <div key={sinfCardId}>
+                  {/* Sinf kartasi */}
+                  <div
+                    data-delete-card={sinfCardId}
+                    className="group relative mb-3 flex items-center justify-between rounded-2xl border border-[#E9E2D8] bg-white p-4 shadow-sm transition hover:border-[#E8B84B] min-[375px]:p-5 select-none"
+                    onPointerDown={(e) => handlePointerDown(e, sinfCardId)}
+                    onPointerMove={handlePointerMove}
+                    onPointerUp={handlePointerCancel}
+                    onPointerCancel={handlePointerCancel}
+                    onPointerLeave={handlePointerCancel}
+                  >
+                    <div className="flex min-w-0 items-center gap-3.5">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#FBF2DB] text-[#9A7A3B]">
+                        <BookOpen size={22} />
+                      </div>
+                      <div className="min-w-0">
+                        <h2 className="break-words text-lg font-bold text-[#2A2A2A]">{group.sinf}-sinf</h2>
+                        <p className="mt-0.5 break-words text-sm text-[#6F6A62]">
+                          {group.totalLevels} ta Level, {group.totalLessons} ta dars
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openSinfDeleteModal(group);
+                      }}
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-red-200 bg-red-50 text-red-600 shadow-sm transition-all hover:bg-red-600 hover:text-white ${
+                        isSinfDeleteActive
+                          ? 'opacity-100 pointer-events-auto scale-100'
+                          : 'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto'
+                      }`}
+                      title={`${group.sinf}-sinfni o‘chirish`}
+                      aria-label={`${group.sinf}-sinfni o‘chirish`}
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   </div>
-                  <h2 className="break-words text-lg font-bold text-[#2A2A2A]">{level.sinf}-sinf · {level.nom}</h2>
-                  <p className="mt-1 break-words text-sm text-[#6F6A62]">
-                    {level.darslar.length} dars, {level.darslar.filter((lesson) => lesson.holat === 'elon_qilingan').length} e’lon qilingan
-                  </p>
-                </button>
-            ))}
+
+                  {/* Level kartalari */}
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {group.levels.map((level) => {
+                      const levelCardId = `level-${level.id}`;
+                      const isLevelDeleteActive = activeDeleteId === levelCardId;
+                      return (
+                        <div
+                          key={level.id}
+                          data-delete-card={levelCardId}
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => handleLevelCardClick(e, level, levelCardId)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              navigate(`/admin/level/${encodeURIComponent(level.id)}`);
+                            }
+                          }}
+                          onPointerDown={(e) => handlePointerDown(e, levelCardId)}
+                          onPointerMove={handlePointerMove}
+                          onPointerUp={handlePointerCancel}
+                          onPointerCancel={handlePointerCancel}
+                          onPointerLeave={handlePointerCancel}
+                          className="group relative min-w-0 rounded-2xl border border-[#E9E2D8] bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#E8B84B] hover:shadow-md min-[375px]:p-5 cursor-pointer select-none"
+                        >
+                          <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl bg-[#FBF2DB] text-[#9A7A3B]">
+                            <BookOpen size={22} />
+                          </div>
+                          <h3 className="break-words text-lg font-bold text-[#2A2A2A]">{level.sinf}-sinf · {level.nom}</h3>
+                          <p className="mt-1 break-words text-sm text-[#6F6A62]">
+                            {level.darslar.length} dars, {level.darslar.filter((lesson) => lesson.holat === 'elon_qilingan').length} e’lon qilingan
+                          </p>
+
+                          <button
+                            type="button"
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openLevelDeleteModal(level);
+                            }}
+                            className={`absolute top-3 right-3 sm:top-4 sm:right-4 flex h-9 w-9 items-center justify-center rounded-xl border border-red-200 bg-red-50 text-red-600 shadow-sm transition-all hover:bg-red-600 hover:text-white ${
+                              isLevelDeleteActive
+                                ? 'opacity-100 pointer-events-auto scale-100'
+                                : 'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto'
+                            }`}
+                            title="Levelni o‘chirish"
+                            aria-label={`${level.nom}ni o‘chirish`}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </main>
+
+      <DeleteConfirmModal
+        target={deleteModal}
+        isDeleting={isDeleting}
+        error={deleteModalError}
+        onClose={() => !isDeleting && setDeleteModal(null)}
+        onConfirm={handleConfirmDelete}
+      />
+
+      {operationMessage && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-6 left-1/2 z-[1000006] -translate-x-1/2 transform flex items-center gap-2 rounded-2xl bg-[#2A2A2A] px-5 py-3 text-sm font-medium text-white shadow-2xl"
+        >
+          <CheckCircle2 size={18} className="text-green-400" />
+          <span>{operationMessage}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -246,24 +595,36 @@ function AdminLevel({ levelId, navigate }) {
   const [error, setError] = useState(() => (
     getCachedLevelAdmin(levelId) ? '' : getAdminDataError()
   ));
+  const [deleteModal, setDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteModalError, setDeleteModalError] = useState('');
 
   useEffect(() => {
     const syncCache = () => {
+      const cachedLevels = getCachedAdminLevels();
+      if (!cachedLevels) return;
       const cachedLevel = getCachedLevelAdmin(levelId);
       if (cachedLevel) {
         setLevel(cachedLevel);
         setError('');
       } else {
-        setError(getAdminDataError());
+        // Level o'chirilgan bo'lsa ro'yxatga qaytish
+        navigate('/admin');
       }
     };
     const unsubscribe = subscribeToLessonData(syncCache);
     getLevelAdmin(levelId)
       .then(setLevel)
-      .catch((reason) => setError(getErrorMessage(reason)))
+      .catch((reason) => {
+        if (reason?.message?.includes('topilmadi')) {
+          navigate('/admin');
+        } else {
+          setError(getErrorMessage(reason));
+        }
+      })
       .finally(() => setIsLoading(false));
     return unsubscribe;
-  }, [levelId]);
+  }, [levelId, navigate]);
 
   const handleCreate = async () => {
     try {
@@ -274,15 +635,41 @@ function AdminLevel({ levelId, navigate }) {
     }
   };
 
+  const handleDeleteCurrentLevel = async () => {
+    if (!level || isDeleting) return;
+    setIsDeleting(true);
+    setDeleteModalError('');
+    try {
+      await deleteLevel(levelId);
+      navigate('/admin');
+    } catch (reason) {
+      setDeleteModalError("O'chirib bo'lmadi, qayta urinib ko'ring");
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className={PAGE_BG + ' min-h-screen'}>
       <AdminHeader navigate={navigate} backPath="/" title={level ? `${level.sinf}-sinf · ${level.nom}` : 'Level darslari'} />
       <main className="mx-auto w-full px-3 py-5 min-[375px]:px-4 sm:px-5 sm:py-7">
         <div className="mb-6 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
           <p className="text-sm text-[#6F6A62]">Darslarni ko‘ring va tahrirlang.</p>
-          <button type="button" disabled={!level} className={PRIMARY + ' w-full sm:w-auto'} onClick={handleCreate}>
-            <Plus size={18} /> Yangi dars qo‘shish
-          </button>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <button
+              type="button"
+              disabled={!level}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+              onClick={() => {
+                setDeleteModalError('');
+                setDeleteModal(true);
+              }}
+            >
+              <Trash2 size={18} /> Levelni o‘chirish
+            </button>
+            <button type="button" disabled={!level} className={PRIMARY + ' w-full sm:w-auto'} onClick={handleCreate}>
+              <Plus size={18} /> Yangi dars qo‘shish
+            </button>
+          </div>
         </div>
         {error && !loading && <p role="alert" className="mb-4 rounded-xl bg-red-50 p-4 text-sm text-red-700">{error}</p>}
         {error && !level && !loading && <button type="button" onClick={() => {
@@ -291,7 +678,13 @@ function AdminLevel({ levelId, navigate }) {
           refreshAdminData()
             .then(() => getLevelAdmin(levelId))
             .then(setLevel)
-            .catch((reason) => setError(getErrorMessage(reason)))
+            .catch((reason) => {
+              if (reason?.message?.includes('topilmadi')) {
+                navigate('/admin');
+              } else {
+                setError(getErrorMessage(reason));
+              }
+            })
             .finally(() => setIsLoading(false));
         }} className={SECONDARY + ' mb-4'}>Qayta urinish</button>}
         {!level && loading && <AdminSkeleton rows={3} />}
@@ -321,6 +714,19 @@ function AdminLevel({ levelId, navigate }) {
           </div>
         )}
       </main>
+
+      <DeleteConfirmModal
+        target={deleteModal && level ? {
+          type: 'level',
+          levelId: level.id,
+          nom: level.nom,
+          lessonCount: level.darslar?.length || 0,
+        } : null}
+        isDeleting={isDeleting}
+        error={deleteModalError}
+        onClose={() => !isDeleting && setDeleteModal(false)}
+        onConfirm={handleDeleteCurrentLevel}
+      />
     </div>
   );
 }
@@ -429,7 +835,22 @@ function LessonEditor({ levelId, lessonId, navigate, onDirtyChange }) {
   }, [lesson, imageDimensions]);
 
   useEffect(() => {
-    if (initialData.levelExists) return undefined;
+    const syncCache = () => {
+      const cachedLevels = getCachedAdminLevels();
+      if (!cachedLevels) return;
+      const cachedLevel = getCachedLevelAdmin(levelId);
+      const found = cachedLevel?.darslar.find((item) => item.id === lessonId);
+      if (!cachedLevel || !found) {
+        onDirtyChange(false);
+        navigate('/admin');
+      }
+    };
+    const unsubscribe = subscribeToLessonData(syncCache);
+    return unsubscribe;
+  }, [levelId, lessonId, navigate, onDirtyChange]);
+
+  useEffect(() => {
+    if (initialData.levelExists && initialData.lesson) return undefined;
     let active = true;
     getLevelAdmin(levelId)
       .then((level) => {
@@ -437,17 +858,26 @@ function LessonEditor({ levelId, lessonId, navigate, onDirtyChange }) {
         setLevelName(level.nom);
         const found = level.darslar.find((item) => item.id === lessonId);
         if (!found) {
-          setError('Dars topilmadi.');
+          onDirtyChange(false);
+          navigate('/admin');
           return;
         }
         const normalized = normalizeLesson(found);
         savedSnapshot.current = JSON.stringify(normalized);
         setLesson(normalized);
       })
-      .catch((reason) => { if (active) setError(getErrorMessage(reason)); })
+      .catch((reason) => {
+        if (!active) return;
+        if (reason?.message?.includes('topilmadi')) {
+          onDirtyChange(false);
+          navigate('/admin');
+        } else {
+          setError(getErrorMessage(reason));
+        }
+      })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [initialData, levelId, lessonId]);
+  }, [initialData, levelId, lessonId, navigate, onDirtyChange]);
 
   const updateLesson = (changes) => {
     const next = { ...lesson, ...changes };

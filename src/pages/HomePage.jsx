@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef, useEffect } from 'react';
+import React, { useMemo, useState, useRef, useEffect, useSyncExternalStore } from 'react';
 import {
   Zap,
   Users,
@@ -33,6 +33,7 @@ import {
 import { dashboardData } from '../data/dashboardData';
 import ShopPage from './ShopPage';
 import { useLanguage } from '../lib/language';
+import { getFaollikSnapshot, subscribeToFaollik } from '../lib/faollik';
 
 
 const FOUR_BUTTONS = [
@@ -52,7 +53,7 @@ const FOUR_BUTTONS = [
     gradient: 'linear-gradient(135deg, #06B6D4 0%, #0EA5E9 45%, #3B82F6 100%)',
     glow: 'rgba(14, 165, 233, 0.30)',
     textColor: '#FFFFFF',
-    path: '/calendar',
+    path: '/faollik',
   },
   {
     id: 'medals',
@@ -106,8 +107,14 @@ export default function HomePage({
   userCoins = 16,
   setUserCoins,
   onNavigatePremium,
+  onNavigateActivity,
 }) {
   const { t } = useLanguage();
+  const activitySnapshot = useSyncExternalStore(
+    subscribeToFaollik,
+    getFaollikSnapshot,
+    getFaollikSnapshot,
+  );
   const [localSubPage, setLocalSubPage] = useState(null);
   const activeSubPage = externalSubPage !== undefined ? externalSubPage : localSubPage;
   const setActiveSubPage = (val) => {
@@ -1086,6 +1093,10 @@ export default function HomePage({
               key={btn.id}
               type="button"
               onClick={() => {
+                if (btn.id === 'calendar') {
+                  onNavigateActivity?.(btn.path);
+                  return;
+                }
                 setActiveSubPage(btn.path);
                 window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
               }}
@@ -1112,9 +1123,11 @@ export default function HomePage({
                   <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-white" strokeWidth={2.4} />
                 </div>
 
-                <h3 className="font-black text-[18px] sm:text-[21px] tracking-[0.08em] uppercase truncate select-none leading-none text-white">
-                  {t(btn.title)}
-                </h3>
+                <div className="min-w-0">
+                  <h3 className="font-black text-[18px] sm:text-[21px] tracking-[0.08em] uppercase truncate select-none leading-none text-white">
+                    {t(btn.title)}
+                  </h3>
+                </div>
               </div>
 
               <div

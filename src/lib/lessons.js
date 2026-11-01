@@ -732,6 +732,44 @@ export async function deleteLesson(levelId, darsId) {
   });
 }
 
+export async function deleteLevel(levelId) {
+  return runQuery('Level o‘chirilmadi', async (client) => {
+    const { data, error } = await client
+      .from('levels')
+      .delete()
+      .eq('id', levelId)
+      .select('id');
+
+    if (error) throw error;
+    if (!data || data.length === 0) throw new Error('Ruxsat yo‘q yoki level topilmadi.');
+    if (adminLevels) {
+      adminLevels = adminLevels.filter((item) => item.id !== levelId);
+      publicLevels = getPublishedLevels(adminLevels);
+      notifyDataChange();
+    }
+    return data;
+  });
+}
+
+export async function deleteSinf(sinf) {
+  return runQuery('Sinf o‘chirilmadi', async (client) => {
+    const { data, error } = await client
+      .from('levels')
+      .delete()
+      .eq('sinf', sinf)
+      .select('id');
+
+    if (error) throw error;
+    if (!data || data.length === 0) throw new Error('Ruxsat yo‘q yoki sinf topilmadi.');
+    if (adminLevels) {
+      adminLevels = adminLevels.filter((item) => item.sinf !== sinf);
+      publicLevels = getPublishedLevels(adminLevels);
+      notifyDataChange();
+    }
+    return data;
+  });
+}
+
 export async function uploadImage(file) {
   if (!file || typeof file !== 'object') {
     throw new Error('Yuklash uchun rasm faylini tanlang.');
