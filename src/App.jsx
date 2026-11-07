@@ -14,6 +14,7 @@ import { supabase } from './lib/supabase';
 import FaollikPage from './pages/FaollikPage';
 import { preloadFaollikForSession, subscribeToFaollik, getFaollikSnapshot } from './lib/faollik';
 import SplashScreen from './components/SplashScreen';
+import QuizPage from './pages/QuizPage';
 
 function isFaollikPath(pathname) {
   return pathname === '/faollik' || pathname === '/faollik/kalendar';
@@ -69,7 +70,7 @@ function AppEntry() {
         const onboardingSeen = window.localStorage.getItem('onboarding_seen') === '1';
         if (active) {
           setEntryState(onboardingSeen
-            ? window.location.pathname === '/home' ? 'app' : 'register'
+            ? ['/home', '/quiz'].includes(window.location.pathname) ? 'app' : 'register'
             : 'onboarding');
         }
       } catch (error) {
@@ -78,7 +79,7 @@ function AppEntry() {
         try {
           const onboardingSeen = window.localStorage.getItem('onboarding_seen') === '1';
           setEntryState(onboardingSeen
-            ? window.location.pathname === '/home' ? 'app' : 'register'
+            ? ['/home', '/quiz'].includes(window.location.pathname) ? 'app' : 'register'
             : 'onboarding');
         } catch (storageError) {
           console.error('Onboarding holatini o‘qib bo‘lmadi:', storageError);
@@ -119,6 +120,7 @@ function MainApp({ initialState }) {
   const [activityPath, setActivityPath] = useState(() => (
     isFaollikPath(window.location.pathname) ? window.location.pathname : null
   ));
+  const [quizPath, setQuizPath] = useState(() => window.location.pathname === '/quiz');
   const activityPathRef = useRef(activityPath);
   const resumeReaderRef = useRef(null);
   const [profileSubPage, setProfileSubPage] = useState('main');
@@ -140,6 +142,15 @@ function MainApp({ initialState }) {
   useEffect(() => {
     const handlePopState = () => {
       const pathname = window.location.pathname;
+      if (pathname === '/quiz') {
+        setQuizPath(true);
+        activityPathRef.current = null;
+        setActivityPath(null);
+        setActiveTab('home');
+        setHomeSubPage(null);
+        return;
+      }
+      setQuizPath(false);
       if (isFaollikPath(pathname)) {
         activityPathRef.current = pathname;
         setActivityPath(pathname);
@@ -164,13 +175,20 @@ function MainApp({ initialState }) {
   }, [appTheme]);
 
   const scrollContainerRef = useRef(null);
+  const prevTabRef = useRef(activeTab);
+  const homeEnterFromLeftRef = useRef(false);
+
+  if (prevTabRef.current !== activeTab) {
+    homeEnterFromLeftRef.current = prevTabRef.current === 'profile' && activeTab === 'home';
+    prevTabRef.current = activeTab;
+  }
 
   // Tab yoki sub-page almashganda scrollni eng tepaga qaytarish (bir sahifaning scrolli boshqasiga ta'sir qilmasligi uchun)
   useEffect(() => {
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTop = 0;
     }
-  }, [activeTab, homeSubPage, profileSubPage, activityPath]);
+  }, [activeTab, homeSubPage, profileSubPage, activityPath, quizPath]);
 
   const handleRegistrationComplete = (data) => {
     setUserData(data);
@@ -193,6 +211,7 @@ function MainApp({ initialState }) {
   };
 
   const navigateActivity = (path) => {
+    setQuizPath(false);
     const nextPath = isFaollikPath(path) ? path : null;
     const destination = nextPath || '/home';
     if (window.location.pathname !== destination) {
@@ -200,6 +219,26 @@ function MainApp({ initialState }) {
     }
     activityPathRef.current = nextPath;
     setActivityPath(nextPath);
+    setActiveTab('home');
+    setHomeSubPage(null);
+  };
+
+  const navigateQuiz = () => {
+    if (window.location.pathname !== '/quiz') {
+      window.history.pushState(null, '', '/quiz');
+    }
+    setQuizPath(true);
+    activityPathRef.current = null;
+    setActivityPath(null);
+    setActiveTab('home');
+    setHomeSubPage(null);
+  };
+
+  const leaveQuiz = () => {
+    if (window.location.pathname === '/quiz') {
+      window.history.replaceState(null, '', '/home');
+    }
+    setQuizPath(false);
     setActiveTab('home');
     setHomeSubPage(null);
   };
@@ -214,7 +253,7 @@ function MainApp({ initialState }) {
 
   // Faqat darslik o'qilayotganda (BookReader) pastdagi navbar yashiriladi.
   // Boshqa barcha sahifalar va bo'limlarda navbar DOIMO ko'rinadi!
-  const shouldHideBottomNav = isLessonOpen;
+  const shouldHideBottomNav = isLessonOpen || quizPath;
 
   return (
     <div className="min-h-screen bg-[#F1F5F9] text-[#1E293B] flex justify-center selection:bg-[#E8B84B] selection:text-[#0D1117]">
@@ -234,7 +273,7 @@ function MainApp({ initialState }) {
             <main ref={scrollContainerRef} className={`flex-1 ${shouldHideBottomNav ? 'pb-0' : 'pb-20'} bg-white relative overflow-y-auto`}>
 
               {/* HOME */}
-              <div key={`home-${activeTab}`} style={{ display: activeTab === 'home' && !activityPath ? 'block' : 'none' }} className="page-transition book-page">
+              <div key={`home-${activeTab}`} style={{ display: activeTab === 'home' && !activityPath && !quizPath ? 'block' : 'none' }} className={`page-transition book-page${homeEnterFromLeftRef.current ? ' page-transition-back' : ''}`}>
                 <HomePage
                   userData={userData}
                   onNavigateTab={handleTabChange}
@@ -243,6 +282,7 @@ function MainApp({ initialState }) {
                   userCoins={currentCoins}
                   setUserCoins={setUserCoins}
                   onNavigateActivity={navigateActivity}
+                  onNavigateQuiz={navigateQuiz}
                   onNavigatePremium={() => {
                     setActiveTab('profile');
                     setProfileSubPage('premium');
@@ -251,7 +291,7 @@ function MainApp({ initialState }) {
               </div>
 
               {/* LESSONS */}
-              <div key={`lessons-${activeTab}`} style={{ display: activeTab === 'lessons' && !activityPath ? 'block' : 'none' }} className="page-transition book-page">
+              <div key={`lessons-${activeTab}`} style={{ display: activeTab === 'lessons' && !activityPath && !quizPath ? 'block' : 'none' }} className="page-transition book-page">
                 <RoadmapPage
                   onLevelOpenChange={setIsLessonOpen}
                   resumeActionRef={resumeReaderRef}
@@ -270,12 +310,12 @@ function MainApp({ initialState }) {
               </div>
 
               {/* RESOURCES / MORE */}
-              <div key={`resources-${activeTab}`} style={{ display: !activityPath && (activeTab === 'resources' || activeTab === 'more') ? 'block' : 'none' }} className="page-transition book-page">
+              <div key={`resources-${activeTab}`} style={{ display: !activityPath && !quizPath && (activeTab === 'resources' || activeTab === 'more') ? 'block' : 'none' }} className="page-transition book-page">
                 <ResourcesPage />
               </div>
 
               {/* PROFILE */}
-              <div key={`profile-${activeTab}`} style={{ display: activeTab === 'profile' && !activityPath ? 'block' : 'none' }} className="page-transition book-page">
+              <div key={`profile-${activeTab}`} style={{ display: activeTab === 'profile' && !activityPath && !quizPath ? 'block' : 'none' }} className="page-transition book-page">
                 <ProfilePage
                   userData={userData}
                   onUpdateUserData={setUserData}
@@ -293,13 +333,15 @@ function MainApp({ initialState }) {
                 />
               </div>
 
-              {activityPath && (
+              {activityPath && !quizPath && (
                 <FaollikPage
                   route={activityPath}
                   onNavigate={navigateActivity}
                   onContinueReading={continueReading}
                 />
               )}
+
+              {quizPath && <QuizPage onNavigateHome={leaveQuiz} />}
 
             </main>
 

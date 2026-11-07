@@ -108,6 +108,7 @@ export default function HomePage({
   setUserCoins,
   onNavigatePremium,
   onNavigateActivity,
+  onNavigateQuiz,
 }) {
   const { t } = useLanguage();
   const activitySnapshot = useSyncExternalStore(
@@ -1095,6 +1096,10 @@ export default function HomePage({
               onClick={() => {
                 if (btn.id === 'calendar') {
                   onNavigateActivity?.(btn.path);
+                  return;
+                }
+                if (btn.id === 'quiz') {
+                  onNavigateQuiz?.(btn.path);
                   return;
                 }
                 setActiveSubPage(btn.path);

@@ -1,0 +1,15 @@
+.quiz-drako-blink img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  image-rendering: pixelated;
+  opacity: 0;
+}
+
+.quiz-drako-blink img.is-visible {
+  opacity: 1;
+}
