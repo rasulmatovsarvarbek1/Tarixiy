@@ -47,6 +47,7 @@ export default function ProfilePage({
   };
   const [editProfileSource, setEditProfileSource] = useState('main'); // 'main' | 'settings_menu'
   const [emptyPageTitle, setEmptyPageTitle] = useState('');
+  const [logoutError, setLogoutError] = useState('');
 
   // Har bir sahifaga kirilganda sahifa avtomatik eng tepasiga ko'tariladi
   const navigateTo = (page, source = null) => {
@@ -1133,8 +1134,13 @@ export default function ProfilePage({
           <div className="pt-3 sm:pt-4 pb-2 flex justify-center">
             <button
               type="button"
-              onClick={() => {
-                if (onLogout) onLogout();
+              onClick={async () => {
+                setLogoutError('');
+                try {
+                  await onLogout?.();
+                } catch (error) {
+                  setLogoutError(error?.message || 'Hisobdan chiqib bo‘lmadi. Qayta urinib ko‘ring.');
+                }
               }}
               className="group flex items-center justify-start w-11 h-11 bg-red-600 rounded-full cursor-pointer relative overflow-hidden transition-all duration-200 shadow-lg hover:w-32 hover:rounded-lg active:translate-x-1 active:translate-y-1"
             >
@@ -1154,6 +1160,11 @@ export default function ProfilePage({
               </div>
             </button>
           </div>
+          {logoutError && (
+            <p role="alert" className="pb-2 text-center text-sm text-red-600">
+              {logoutError}
+            </p>
+          )}
 
         </div>
       </div>

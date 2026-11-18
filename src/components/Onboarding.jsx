@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
+import OnboardingDrakoBlink from './OnboardingDrakoBlink';
 
 const onboardingPages = [
   {
@@ -58,7 +59,7 @@ function getSlideVariants(direction) {
   };
 }
 
-export default function Onboarding({ onComplete }) {
+export default function Onboarding({ onComplete, onLogin }) {
   const [pageIndex, setPageIndex] = useState(0);
   const [direction, setDirection] = useState(1);
   const prefersReducedMotion = useReducedMotion();
@@ -93,11 +94,16 @@ export default function Onboarding({ onComplete }) {
 
   return (
     <main className="flex h-dvh w-full justify-center overflow-hidden bg-white text-gray-800">
-      {onboardingPages.map(({ image }) => (
-        <link key={image} rel="preload" as="image" href={image} />
-      ))}
       <div className="flex h-full w-full max-w-md flex-col px-6 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))]">
-        <header className="h-10 shrink-0" />
+        <header className="flex h-10 shrink-0 justify-end">
+          <button
+            type="button"
+            onClick={onLogin}
+            className="text-sm font-medium text-[#B45309] underline-offset-4 hover:underline"
+          >
+            Hisobim bor, kirish
+          </button>
+        </header>
 
         <div className="relative min-h-0 flex-1">
           <AnimatePresence mode="wait" custom={direction} initial={false}>
@@ -192,21 +198,23 @@ export default function Onboarding({ onComplete }) {
                       : { duration: 0.55, ease: 'easeOut' }}
                   className={`relative z-[1] flex w-full flex-col items-center ${page.imagePosition}`}
                 >
-                  <motion.img
-                    src={page.image}
-                    alt=""
-                    width={1024}
-                    height={1024}
-                    draggable="false"
-                    className="h-auto max-h-[min(44dvh,360px)] max-w-full select-none object-contain [@media(max-height:600px)]:max-h-[20dvh]"
-                    style={{ width: `min(${page.imageWidth}px, 82vw)`, mixBlendMode: 'multiply' }}
-                    animate={prefersReducedMotion ? { y: 0, rotate: 0 } : page.animation === 'greet'
-                      ? { y: [0, -8, 0] }
-                      : page.animation === 'study'
+                  {page.animation === 'greet' ? (
+                    <OnboardingDrakoBlink prefersReducedMotion={prefersReducedMotion} />
+                  ) : (
+                    <motion.img
+                      src={page.image}
+                      alt=""
+                      width={1024}
+                      height={1024}
+                      draggable="false"
+                      className="h-auto max-h-[min(44dvh,360px)] max-w-full select-none object-contain [@media(max-height:600px)]:max-h-[20dvh]"
+                      style={{ width: `min(${page.imageWidth}px, 82vw)`, mixBlendMode: 'multiply' }}
+                      animate={prefersReducedMotion ? { y: 0, rotate: 0 } : page.animation === 'study'
                         ? { rotate: [-2, 2, -2] }
                         : { y: [0, -5, 0], rotate: -3 }}
-                    transition={{ duration: page.animation === 'study' ? 3.2 : 3, repeat: Infinity, ease: 'easeInOut' }}
-                  />
+                      transition={{ duration: page.animation === 'study' ? 3.2 : 3, repeat: Infinity, ease: 'easeInOut' }}
+                    />
+                  )}
                   <motion.div
                     aria-hidden="true"
                     className="mt-[-3px] h-4 w-40 rounded-full bg-black/10 blur-md"
