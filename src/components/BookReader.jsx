@@ -24,6 +24,7 @@ import {
   getSaved,
   addSaved,
   removeSaved,
+  updateSaved,
   getSettings,
   saveSettings,
 } from '../lib/readerStorage';
@@ -640,13 +641,13 @@ function SettingsPopover({ settings, onChange, theme, onClose }) {
 
 /* ═══════════════════════════════════════ SAVED SHEET ═══════════════════════════════════════ */
 
-function SavedSheet({ levelId, lessons, theme, onClose, onNavigate }) {
+function SavedSheet({ levelId, lessonIndex, lessons, theme, onClose, onNavigate, onChange }) {
   const { language, t } = useLanguage();
-  const items = getSaved(levelId);
+  const items = getSaved(levelId).filter((item) => item.lessonIndex === lessonIndex);
 
   const handleDelete = (id) => {
     removeSaved(levelId, id);
-    onClose();
+    onChange?.();
   };
 
   return (
@@ -696,7 +697,8 @@ function SavedSheet({ levelId, lessons, theme, onClose, onNavigate }) {
                 >
                   <div style={{
                     fontSize: 14, lineHeight: 1.5,
-                    background: '#FFE06699', borderRadius: 4, padding: '2px 4px',
+                    background: HIGHLIGHT_COLORS[item.color || 'yellow'].background,
+                    borderRadius: 4, padding: '2px 4px',
                     display: 'inline',
                   }}>
                     {item.text.length > 80 ? item.text.slice(0, 80) + '…' : item.text}
@@ -874,32 +876,90 @@ function ProgressSlider({ screenIndex, totalScreens, lessonCoverIndices = [], th
 
 /* ═══════════════════════════════════════ SAVE SELECTION BUTTON ═══════════════════════════════════════ */
 
-function SaveButton({ position, onSave }) {
+const HIGHLIGHT_COLORS = {
+  yellow: { label: 'Sariq', background: 'rgba(255, 224, 102, 0.68)' },
+  green: { label: 'Yashil', background: 'rgba(134, 239, 172, 0.68)' },
+  blue: { label: 'Moviy', background: 'rgba(147, 197, 253, 0.68)' },
+};
+
+function SaveButton({ position, color, onColorChange, onSave, onClose }) {
   const { t } = useLanguage();
   if (!position) return null;
+  const left = Math.max(8, Math.min(window.innerWidth - 238, position.x));
+  const top = position.y > 82
+    ? position.y - 58
+    : position.y + 12;
   return (
-    <button
-      type="button"
-      onClick={onSave}
+    <div
+      onMouseDown={(event) => event.preventDefault()}
+      onTouchStart={(event) => event.stopPropagation()}
+      onTouchEnd={(event) => event.stopPropagation()}
       style={{
-        position: 'absolute',
-        left: position.x,
-        top: position.y - 36,
-        zIndex: 150,
-        background: SLIDER_ORANGE,
-        color: '#fff',
-        border: 'none',
-        borderRadius: 8,
-        padding: '5px 14px',
-        fontSize: 13,
-        fontWeight: 600,
+        position: 'fixed',
+        left,
+        top: Math.max(8, top),
+        zIndex: 1000001,
+        width: 230,
+        background: '#FFFFFF',
+        border: '1px solid rgba(15,23,42,0.10)',
+        borderRadius: 14,
+        padding: 7,
+        boxSizing: 'border-box',
+        boxShadow: '0 12px 32px rgba(15,23,42,0.22)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
         fontFamily: SANS,
-        cursor: 'pointer',
-        whiteSpace: 'nowrap',
       }}
     >
-      {t('Saqlash')}
-    </button>
+      {Object.entries(HIGHLIGHT_COLORS).map(([key, option]) => (
+        <button
+          key={key}
+          type="button"
+          onClick={() => onColorChange(key)}
+          aria-label={option.label}
+          style={{
+            width: 30,
+            height: 30,
+            borderRadius: 9,
+            border: color === key ? '2px solid #0F172A' : '1px solid rgba(15,23,42,0.08)',
+            background: option.background,
+            cursor: 'pointer',
+            flexShrink: 0,
+          }}
+        />
+      ))}
+      <button
+        type="button"
+        onClick={onSave}
+        style={{
+          height: 36,
+          flex: 1,
+          border: 'none',
+          borderRadius: 9,
+          background: SLIDER_ORANGE,
+          color: '#FFFFFF',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 5,
+          fontSize: 12,
+          fontWeight: 800,
+          cursor: 'pointer',
+        }}
+      >
+        <Bookmark size={15} />
+        {t('Saqlash')}
+      </button>
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label={t('Yopish')}
+        style={{ width: 28, height: 28, border: 'none', background: 'transparent', color: '#64748B', cursor: 'pointer', padding: 4 }}
+      >
+        <X size={16} />
+      </button>
+    </div>
   );
 }
 
@@ -1036,6 +1096,9 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [savedOpen, setSavedOpen] = useState(false);
   const [saveBtn, setSaveBtn] = useState(null); // { x, y } or null
+  const [highlightColor, setHighlightColor] = useState('yellow');
+  const [highlightMenu, setHighlightMenu] = useState(null);
+  const [highlightToast, setHighlightToast] = useState('');
 
   // Saved items uchun qayta-render trigger
   const [savedTrigger, setSavedTrigger] = useState(0);
@@ -1134,7 +1197,17 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
       if (!newScreens || newScreens.length === 0) return;
 
       const saved = getProgress(levelId);
-      if (saved) {
+      let target = null;
+      try {
+        target = JSON.parse(window.sessionStorage.getItem('tarixiy-open-highlight') || 'null');
+      } catch {
+        target = null;
+      }
+      if (target?.levelId && String(target.levelId) === String(levelId)) {
+        window.sessionStorage.removeItem('tarixiy-open-highlight');
+        const idx = findScreenByLessonAndWord(newScreens, Number(target.lessonIndex || 0), Number(target.wordIndex || 0));
+        setScreenIndex(Math.max(0, idx));
+      } else if (saved) {
         const idx = findScreenByLessonAndWord(newScreens, saved.lessonIndex, saved.wordIndex);
         setScreenIndex(Math.max(0, idx));
       } else {
@@ -1289,6 +1362,7 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
 
   useEffect(() => {
     setSaveBtn(null);
+    setHighlightMenu(null);
   }, [screenIndex]);
 
   // ─── Klaviatura + brauzer orqaga ───
@@ -1310,19 +1384,34 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
 
   // ─── Matn tanlash va Saqlash tugmasi ───
   const handleSelectionChange = useCallback(() => {
-    const sel = window.getSelection();
-    if (!sel || sel.isCollapsed || !sel.toString().trim()) {
-      setSaveBtn(null);
-      return;
-    }
-    const range = sel.getRangeAt(0);
-    const rect = range.getBoundingClientRect();
-    setSaveBtn({ x: rect.left + rect.width / 2 - 30, y: rect.top });
+    window.setTimeout(() => {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed || !sel.toString().trim()) {
+        setSaveBtn(null);
+        return;
+      }
+      const range = sel.rangeCount ? sel.getRangeAt(0) : null;
+      if (!range || !areaRef.current) return;
+      if (!areaRef.current.contains(range.commonAncestorContainer)
+        && range.commonAncestorContainer !== areaRef.current) {
+        setSaveBtn(null);
+        return;
+      }
+      const rect = range.getBoundingClientRect();
+      if (!rect.width && !rect.height) return;
+      setSaveBtn({ x: rect.left + rect.width / 2 - 115, y: rect.top });
+    }, 50);
   }, []);
 
   useEffect(() => {
     document.addEventListener('selectionchange', handleSelectionChange);
-    return () => document.removeEventListener('selectionchange', handleSelectionChange);
+    document.addEventListener('mouseup', handleSelectionChange);
+    document.addEventListener('touchend', handleSelectionChange);
+    return () => {
+      document.removeEventListener('selectionchange', handleSelectionChange);
+      document.removeEventListener('mouseup', handleSelectionChange);
+      document.removeEventListener('touchend', handleSelectionChange);
+    };
   }, [handleSelectionChange]);
 
   const handleSaveSelection = useCallback(() => {
@@ -1347,13 +1436,18 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
       startWord,
       endWord,
       text,
+      color: highlightColor,
+      lessonTitle: darslar[scr.lessonIndex]?.sarlavha || darslar[scr.lessonIndex]?.title || '',
+      grade: level?.sinf ? `${level.sinf}-sinf` : '',
       createdAt: Date.now(),
     });
 
     sel.removeAllRanges();
     setSaveBtn(null);
     setSavedTrigger((t) => t + 1);
-  }, [screens, screenIndex, levelId]);
+    setHighlightToast("Muhim ma'lumot saqlandi");
+    window.setTimeout(() => setHighlightToast(''), 2200);
+  }, [screens, screenIndex, levelId, highlightColor, darslar, level]);
 
   // ─── Tap va Swipe ───
   const hasSelection = useCallback(() => {
@@ -1437,13 +1531,26 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
           const isHighlighted = lessonSaved.some(
             (s) => w.globalWordIndex >= s.startWord && w.globalWordIndex <= s.endWord
           );
+          const highlightItem = lessonSaved.find(
+            (s) => w.globalWordIndex >= s.startWord && w.globalWordIndex <= s.endWord
+          );
           return (
             <React.Fragment key={wi}>
               {wi > 0 && ' '}
               <span
                 data-w={w.globalWordIndex}
+                onClick={(event) => {
+                  if (!highlightItem) return;
+                  event.stopPropagation();
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  setHighlightMenu({
+                    id: highlightItem.id,
+                    x: rect.left + rect.width / 2,
+                    y: rect.top,
+                  });
+                }}
                 style={{
-                  ...(isHighlighted ? { background: 'rgba(255, 224, 102, 0.6)', borderRadius: 2 } : {}),
+                  ...(isHighlighted ? { background: HIGHLIGHT_COLORS[highlightItem?.color || 'yellow'].background, borderRadius: 3, cursor: 'pointer' } : {}),
                   ...(w.bold ? { fontWeight: 700 } : {}),
                   ...(w.italic ? { fontStyle: 'italic' } : {}),
                 }}
@@ -1564,6 +1671,8 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
       {/* Sahifa maydoni */}
       <div
         ref={areaRef}
+        onMouseUp={handleSelectionChange}
+        onPointerUp={handleSelectionChange}
         style={{
           position: 'absolute',
           inset: 0,
@@ -1606,7 +1715,59 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
             }}
           >
             {renderPageElements(currentScreen.page.elements, currentScreen.lessonIndex)}
-            <SaveButton position={saveBtn} onSave={handleSaveSelection} />
+            <SaveButton
+              position={saveBtn}
+              color={highlightColor}
+              onColorChange={setHighlightColor}
+              onSave={handleSaveSelection}
+              onClose={() => setSaveBtn(null)}
+            />
+            {highlightMenu && (
+              <div
+                style={{
+                  position: 'fixed',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  top: highlightMenu.y > 90 ? highlightMenu.y - 52 : highlightMenu.y + 12,
+                  zIndex: 1000002,
+                  width: 220,
+                  borderRadius: 12,
+                  border: '1px solid rgba(15,23,42,0.10)',
+                  background: '#FFFFFF',
+                  boxShadow: '0 12px 32px rgba(15,23,42,0.22)',
+                  padding: 7,
+                  display: 'flex',
+                  gap: 6,
+                  alignItems: 'center',
+                  fontFamily: SANS,
+                }}
+              >
+                {Object.entries(HIGHLIGHT_COLORS).map(([key, option]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => {
+                      updateSaved(levelId, highlightMenu.id, { color: key });
+                      setHighlightMenu(null);
+                      setSavedTrigger((value) => value + 1);
+                    }}
+                    aria-label={option.label}
+                    style={{ width: 30, height: 30, borderRadius: 9, border: '1px solid rgba(15,23,42,0.10)', background: option.background, cursor: 'pointer' }}
+                  />
+                ))}
+                <button
+                  type="button"
+                  onClick={() => {
+                    removeSaved(levelId, highlightMenu.id);
+                    setHighlightMenu(null);
+                    setSavedTrigger((value) => value + 1);
+                  }}
+                  style={{ height: 30, flex: 1, border: 'none', borderRadius: 8, background: '#FEE2E2', color: '#DC2626', fontSize: 11, fontWeight: 800, cursor: 'pointer' }}
+                >
+                  {t("O'chirish")}
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -1714,6 +1875,28 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
             }}
           >
             <Bookmark size={22} strokeWidth={1.8} />
+            {allSaved.filter((item) => item.lessonIndex === (currentScreen?.lessonIndex ?? 0)).length > 0 && (
+              <span
+                style={{
+                  position: 'absolute',
+                  right: 2,
+                  top: 1,
+                  minWidth: 16,
+                  height: 16,
+                  borderRadius: 8,
+                  background: SLIDER_ORANGE,
+                  color: '#FFFFFF',
+                  border: `2px solid ${theme.bg}`,
+                  fontSize: 9,
+                  lineHeight: '12px',
+                  fontWeight: 900,
+                  textAlign: 'center',
+                  boxSizing: 'border-box',
+                }}
+              >
+                {allSaved.filter((item) => item.lessonIndex === (currentScreen?.lessonIndex ?? 0)).length}
+              </span>
+            )}
           </button>
 
           {/* Settings popover */}
@@ -1812,11 +1995,37 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
       {savedOpen && (
         <SavedSheet
           levelId={levelId}
+          lessonIndex={currentScreen?.lessonIndex ?? 0}
           lessons={darslar}
           theme={theme}
           onClose={() => { setSavedOpen(false); setSavedTrigger((t) => t + 1); }}
           onNavigate={handleSavedNavigate}
+          onChange={() => setSavedTrigger((value) => value + 1)}
         />
+      )}
+      {highlightToast && (
+        <div
+          role="status"
+          style={{
+            position: 'fixed',
+            left: '50%',
+            bottom: 20,
+            transform: 'translateX(-50%)',
+            zIndex: 1000003,
+            maxWidth: 'calc(100% - 32px)',
+            background: '#0F172A',
+            color: '#FFFFFF',
+            borderRadius: 12,
+            padding: '11px 16px',
+            fontFamily: SANS,
+            fontSize: 13,
+            fontWeight: 800,
+            boxShadow: '0 10px 30px rgba(15,23,42,0.28)',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {highlightToast}
+        </div>
       )}
     </div>
     </div>

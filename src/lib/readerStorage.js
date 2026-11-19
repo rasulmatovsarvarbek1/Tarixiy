@@ -5,7 +5,7 @@
 
 const KEYS = {
   progress: 'roadmap:progress',   // { [levelId]: { lessonIndex, wordIndex } }
-  saved: 'roadmap:saved',         // { [levelId]: [ { id, levelId, lessonIndex, startWord, endWord, text, createdAt } ] }
+  saved: 'roadmap:saved',         // { [levelId]: [ { id, levelId, lessonIndex, startWord, endWord, text, color, lessonTitle, grade, createdAt } ] }
   settings: 'reader:settings',    // { fontSize, fontFamily, bgTheme, brightness, autoTheme }
   unlocked: 'roadmap:unlocked',   // [1, 2, 3, ...]
   completed: 'roadmap:completed', // [1, 2, ...]
@@ -56,15 +56,54 @@ export function getLastReadLevelId() {
 // TODO: Supabase
 export function getSaved(levelId) {
   const all = read(KEYS.saved, {});
-  return all[levelId] || [];
+  return (all[levelId] || []).map(normalizeSavedItem).filter(Boolean);
 }
 
 // TODO: Supabase
 export function addSaved(levelId, item) {
   const all = read(KEYS.saved, {});
   if (!all[levelId]) all[levelId] = [];
-  all[levelId].push(item);
+  all[levelId].push(normalizeSavedItem({ ...item, levelId }) || item);
   write(KEYS.saved, all);
+}
+
+// TODO: Supabase
+export function updateSaved(levelId, itemId, changes) {
+  const all = read(KEYS.saved, {});
+  if (!all[levelId]) return null;
+  const index = all[levelId].findIndex((item) => item.id === itemId);
+  if (index === -1) return null;
+  all[levelId][index] = normalizeSavedItem({ ...all[levelId][index], ...changes, levelId }) || all[levelId][index];
+  write(KEYS.saved, all);
+  return all[levelId][index];
+}
+
+// TODO: Supabase
+export function getAllSaved() {
+  const all = read(KEYS.saved, {});
+  return Object.entries(all).flatMap(([levelId, items]) =>
+    (Array.isArray(items) ? items : [])
+      .map((item) => normalizeSavedItem({ ...item, levelId }))
+      .filter(Boolean)
+  ).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+}
+
+function normalizeSavedItem(item) {
+  if (!item || typeof item.text !== 'string' || !item.text.trim()) return null;
+  const allowedColors = ['yellow', 'green', 'blue'];
+  return {
+    ...item,
+    id: item.id || String(Date.now()),
+    levelId: item.levelId,
+    lessonIndex: Number(item.lessonIndex || 0),
+    startWord: Number(item.startWord || 0),
+    endWord: Number(item.endWord || item.startWord || 0),
+    text: item.text.trim(),
+    color: allowedColors.includes(item.color) ? item.color : 'yellow',
+    lessonTitle: item.lessonTitle || item.title || '',
+    grade: item.grade || '',
+    createdAt: item.createdAt || Date.now(),
+  };
 }
 
 // TODO: Supabase

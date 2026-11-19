@@ -29,11 +29,13 @@ import {
   ChevronRight,
   Link as LinkIcon
 } from 'lucide-react';
+import { Search, Trash2 } from 'lucide-react';
 import { dashboardData } from '../data/dashboardData';
 import ShopPage from './ShopPage';
 import BilimdonlarPage from './BilimdonlarPage';
 import { useLanguage } from '../lib/language';
 import { getFaollikSnapshot, subscribeToFaollik } from '../lib/faollik';
+import { getAllSaved, removeSaved } from '../lib/readerStorage';
 
 
 const FOUR_BUTTONS = [
@@ -131,6 +133,9 @@ export default function HomePage({
   const [refStep, setRefStep] = useState(0);
   const [showFriendsList, setShowFriendsList] = useState(false);
   const [isShareSheetOpen, setIsShareSheetOpen] = useState(false);
+  const [savedSearch, setSavedSearch] = useState('');
+  const [savedGradeFilter, setSavedGradeFilter] = useState('all');
+  const [savedListTrigger, setSavedListTrigger] = useState(0);
 
   // Referal sahifasidagi 4 qadamli karusel avtomatik o'tishi (har 12 sekundda)
   useEffect(() => {
@@ -729,6 +734,23 @@ export default function HomePage({
      SUB-PAGE: SAQLANGAN
   ═══════════════════════════════════════════════════════════════ */
   if (activeSubPage === 'saqlangan') {
+    const allSaved = getAllSaved();
+    const gradeOptions = [...new Set(allSaved.map((item) => item.grade).filter(Boolean))];
+    const query = savedSearch.trim().toLocaleLowerCase();
+    const filteredSaved = allSaved.filter((item) => {
+      const matchesQuery = !query
+        || item.text?.toLocaleLowerCase().includes(query)
+        || item.lessonTitle?.toLocaleLowerCase().includes(query)
+        || item.grade?.toLocaleLowerCase().includes(query);
+      const matchesGrade = savedGradeFilter === 'all' || item.grade === savedGradeFilter;
+      return matchesQuery && matchesGrade;
+    });
+    const markerColors = {
+      yellow: '#FDE68A',
+      green: '#86EFAC',
+      blue: '#93C5FD',
+    };
+
     return (
       <div className="w-full max-w-md mx-auto min-h-screen bg-white text-[#1E293B] px-4 sm:px-5 pt-10 sm:pt-12 pb-24 sm:pb-28 flex flex-col page-transition">
         <div className="flex items-center gap-3 mb-6">
@@ -741,15 +763,95 @@ export default function HomePage({
           </button>
           <h1 className="text-lg sm:text-xl font-bold text-[#0F172A]">{t('Saqlangan')}</h1>
         </div>
-        <div className="flex-1 flex flex-col items-center justify-center text-center p-4 sm:p-6">
-          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[#F0F9FF] border border-[#BAE6FD] flex items-center justify-center text-[#0284C7] mb-4 shadow-sm">
-            <Bookmark className="w-7 h-7 sm:w-8 sm:h-8" />
+
+        {allSaved.length > 0 && (
+          <div className="space-y-2.5 mb-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8]" />
+              <input
+                value={savedSearch}
+                onChange={(event) => setSavedSearch(event.target.value)}
+                placeholder="1336 yoki Amir Temur..."
+                className="w-full h-11 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] pl-10 pr-3 text-xs text-[#0F172A] outline-none focus:border-[#38BDF8]"
+              />
+            </div>
+            {gradeOptions.length > 0 && (
+              <select
+                value={savedGradeFilter}
+                onChange={(event) => setSavedGradeFilter(event.target.value)}
+                className="w-full h-10 rounded-xl border border-[#E2E8F0] bg-white px-3 text-xs text-[#334155] outline-none"
+              >
+                <option value="all">Barcha sinflar</option>
+                {gradeOptions.map((grade) => (
+                  <option key={grade} value={grade}>{grade}</option>
+                ))}
+              </select>
+            )}
           </div>
-          <h2 className="text-base sm:text-lg font-bold text-[#0F172A] mb-1">{t('Saqlangan mavzular')}</h2>
-          <p className="text-[11px] sm:text-xs text-[#64748B] max-w-xs">
-            {t('Hozircha hech qanday dars yoki manba saqlanmagan.')}
-          </p>
-        </div>
+        )}
+
+        {filteredSaved.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-center p-4 sm:p-6">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[#F0F9FF] border border-[#BAE6FD] flex items-center justify-center text-[#0284C7] mb-4 shadow-sm">
+              <Bookmark className="w-7 h-7 sm:w-8 sm:h-8" />
+            </div>
+            <h2 className="text-base sm:text-lg font-bold text-[#0F172A] mb-1">{t('Saqlangan mavzular')}</h2>
+            <p className="text-[11px] sm:text-xs text-[#64748B] max-w-xs">
+              {allSaved.length ? 'Qidiruv natijasi topilmadi.' : t('Hozircha hech qanday dars yoki manba saqlanmagan.')}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filteredSaved.map((item) => (
+              <article
+                key={item.id}
+                className="relative rounded-2xl border border-[#E2E8F0] bg-white p-4 pl-5 shadow-[0_8px_24px_rgba(15,23,42,0.05)] overflow-hidden"
+              >
+                <div
+                  className="absolute left-0 top-0 bottom-0 w-1.5"
+                  style={{ background: markerColors[item.color] || markerColors.yellow }}
+                />
+                <p className="text-sm leading-relaxed font-medium text-[#1E293B] pr-8">
+                  {item.text}
+                </p>
+                <div className="mt-3 text-[11px] text-[#64748B]">
+                  {item.grade || 'Sinf'} <span className="mx-1">•</span> {item.lessonTitle || 'Mavzu'}
+                </div>
+                <div className="mt-1 text-[10px] text-[#94A3B8]">
+                  {new Date(item.createdAt).toLocaleDateString('uz-UZ', { day: '2-digit', month: 'long', year: 'numeric' })}
+                </div>
+                <div className="mt-3 flex items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveSubPage(null);
+                      onNavigateTab?.('lessons');
+                      window.sessionStorage.setItem('tarixiy-open-highlight', JSON.stringify({
+                        levelId: item.levelId,
+                        lessonIndex: item.lessonIndex,
+                        wordIndex: item.startWord,
+                      }));
+                    }}
+                    className="h-9 px-3 rounded-xl bg-[#0F172A] text-white text-[11px] font-bold active:scale-[0.98]"
+                  >
+                    Darslikda ko'rish
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      removeSaved(item.levelId, item.id);
+                      setSavedListTrigger((value) => value + 1);
+                    }}
+                    aria-label="O'chirish"
+                    className="w-9 h-9 rounded-xl bg-[#FEF2F2] text-[#DC2626] flex items-center justify-center"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
       </div>
     );
   }

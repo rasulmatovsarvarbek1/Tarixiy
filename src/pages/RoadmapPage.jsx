@@ -217,6 +217,24 @@ export default function RoadmapPage({ onNavigate, onLevelOpenChange, resumeActio
   }, [resumeActionRef, resumeLastRead]);
 
   useEffect(() => {
+    if (selectedLevel || !roadmapLevels.length) return;
+    let target = null;
+    try {
+      target = JSON.parse(window.sessionStorage.getItem('tarixiy-open-highlight') || 'null');
+    } catch {
+      target = null;
+    }
+    if (!target?.levelId) return;
+    const level = roadmapLevels.find((item) => String(item.id) === String(target.levelId));
+    if (!level) return;
+    window.sessionStorage.removeItem('tarixiy-open-highlight');
+    setSelectedLevel(level);
+    setReaderLevel(getCachedLevel(level.id));
+    setReaderError('');
+    onLevelOpenChange?.(true);
+  }, [roadmapLevels, selectedLevel, onLevelOpenChange]);
+
+  useEffect(() => {
     if (!selectedLevel) return undefined;
     const cachedLevel = getCachedLevel(selectedLevel.id);
     if (cachedLevel) return undefined;
