@@ -16,7 +16,6 @@ import {
   Lock,
   Target,
   CalendarDays,
-  Medal,
   Trophy,
   CircleHelp,
   Send,
@@ -32,6 +31,7 @@ import {
 } from 'lucide-react';
 import { dashboardData } from '../data/dashboardData';
 import ShopPage from './ShopPage';
+import BilimdonlarPage from './BilimdonlarPage';
 import { useLanguage } from '../lib/language';
 import { getFaollikSnapshot, subscribeToFaollik } from '../lib/faollik';
 
@@ -56,13 +56,13 @@ const FOUR_BUTTONS = [
     path: '/faollik',
   },
   {
-    id: 'medals',
-    title: 'MEDALLAR',
-    IconComponent: Medal,
+    id: 'bilimdonlar',
+    title: 'BILIMDONLAR',
+    IconComponent: Sparkles,
     gradient: 'linear-gradient(135deg, #FBBF24 0%, #F59E0B 42%, #F97316 100%)',
     glow: 'rgba(245, 158, 11, 0.34)',
     textColor: '#FFFFFF',
-    path: '/medals',
+    path: '/bilimdonlar',
   },
   {
     id: 'ranking',
@@ -755,9 +755,13 @@ export default function HomePage({
   }
 
   /* ═══════════════════════════════════════════════════════════════
-     SUB-PAGE: 4 BUTTON (QUIZ / CALENDAR / MEDALS / RANKING)
+     SUB-PAGE: 4 BUTTON (QUIZ / CALENDAR / BILIMDONLAR / RANKING)
   ═══════════════════════════════════════════════════════════════ */
-  if (activeSubPage === '/quiz' || activeSubPage === '/calendar' || activeSubPage === '/medals' || activeSubPage === '/ranking') {
+  if (activeSubPage === '/bilimdonlar') {
+    return <BilimdonlarPage onBack={() => setActiveSubPage(null)} />;
+  }
+
+  if (activeSubPage === '/quiz' || activeSubPage === '/calendar' || activeSubPage === '/ranking') {
     const currentBtn = FOUR_BUTTONS.find((b) => b.path === activeSubPage);
     const BtnIcon = currentBtn?.IconComponent;
     return (
