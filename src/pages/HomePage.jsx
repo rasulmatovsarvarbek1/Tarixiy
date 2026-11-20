@@ -768,6 +768,13 @@ export default function HomePage({
       yellow: '#FDE68A',
       green: '#86EFAC',
       blue: '#93C5FD',
+      sariq: '#FDE68A',
+      yashil: '#86EFAC',
+      ko_k: '#93C5FD',
+    };
+    const getMarkerColor = (color) => {
+      if (typeof color === 'string' && /^#[0-9a-f]{3,6}$/i.test(color)) return color;
+      return markerColors[color] || markerColors.yellow;
     };
 
     return (
@@ -828,7 +835,7 @@ export default function HomePage({
               >
                 <div
                   className="absolute left-0 top-0 bottom-0 w-1.5"
-                  style={{ background: markerColors[item.color] || markerColors.yellow }}
+                  style={{ background: getMarkerColor(item.color || item.rang) }}
                 />
                 <p className="text-sm leading-relaxed font-medium text-[#1E293B] pr-8">
                   {item.text}

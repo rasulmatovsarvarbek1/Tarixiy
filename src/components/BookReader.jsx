@@ -117,6 +117,7 @@ function prepareLessonData(lesson, imagesStatus = {}, includeEmptyAnchors = fals
   if (!Array.isArray(blocks)) {
     blocks = lesson?.content ? [{ tur: 'matn', qiymat: lesson.content }] : [];
   }
+  blocks = blocks.filter((block) => block && typeof block === 'object');
 
   const imageBlocks = new Map();
   const imageKeysByBlock = new Map();
@@ -716,7 +717,7 @@ function SavedSheet({ levelId, lessonIndex, lessons, theme, onClose, onNavigate,
                 >
                   <div style={{
                     fontSize: 14, lineHeight: 1.5,
-                    background: HIGHLIGHT_COLORS[item.color || 'yellow'].background,
+                    background: getHighlightBackground(item.color),
                     borderRadius: 4, padding: '2px 4px',
                     display: 'inline',
                   }}>
@@ -901,6 +902,13 @@ const HIGHLIGHT_COLORS = {
   blue: { label: 'Moviy', background: 'rgba(147, 197, 253, 0.68)' },
 };
 
+function getHighlightBackground(color) {
+  const normalized = typeof color === 'string' ? normalizeHighlightColor(color) : 'sariq';
+  if (/^#[0-9a-f]{3,6}$/i.test(normalized)) return normalized;
+  return HIGHLIGHT_COLORS[normalized]?.background
+    || HIGHLIGHT_COLORS.yellow.background;
+}
+
 function SaveButton({ position, color, onColorChange, onSave, onClose }) {
   const { t } = useLanguage();
   if (!position) return null;
@@ -987,6 +995,9 @@ function SaveButton({ position, color, onColorChange, onSave, onClose }) {
 class ErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { hasError: false }; }
   static getDerivedStateFromError() { return { hasError: true }; }
+  componentDidCatch(error, info) {
+    console.error('BookReader xatosi:', error, info);
+  }
   render() {
     if (this.state.hasError) {
       return (
@@ -1697,7 +1708,7 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
                   });
                 }}
                 style={{
-                  ...(isHighlighted ? { background: HIGHLIGHT_COLORS[highlightItem?.color || 'yellow'].background, borderRadius: 3, cursor: 'pointer' } : {}),
+                  ...(isHighlighted ? { background: getHighlightBackground(highlightItem?.color), borderRadius: 3, cursor: 'pointer' } : {}),
                   ...(w.bold ? { fontWeight: 700 } : {}),
                   ...(w.italic ? { fontStyle: 'italic' } : {}),
                 }}
