@@ -35,7 +35,13 @@ import ShopPage from './ShopPage';
 import BilimdonlarPage from './BilimdonlarPage';
 import { useLanguage } from '../lib/language';
 import { getFaollikSnapshot, subscribeToFaollik } from '../lib/faollik';
-import { getAllSaved, removeSaved } from '../lib/readerStorage';
+import {
+  getCachedHighlights,
+  getHighlightsSnapshot,
+  removeHighlight,
+  subscribeToHighlights,
+} from '../lib/highlights';
+import { getCachedLevels } from '../lib/lessons';
 
 
 const FOUR_BUTTONS = [
@@ -136,6 +142,11 @@ export default function HomePage({
   const [savedSearch, setSavedSearch] = useState('');
   const [savedGradeFilter, setSavedGradeFilter] = useState('all');
   const [savedListTrigger, setSavedListTrigger] = useState(0);
+  const highlightSnapshot = useSyncExternalStore(
+    subscribeToHighlights,
+    getHighlightsSnapshot,
+    getHighlightsSnapshot,
+  );
 
   // Referal sahifasidagi 4 qadamli karusel avtomatik o'tishi (har 12 sekundda)
   useEffect(() => {
@@ -734,15 +745,23 @@ export default function HomePage({
      SUB-PAGE: SAQLANGAN
   ═══════════════════════════════════════════════════════════════ */
   if (activeSubPage === 'saqlangan') {
-    const allSaved = getAllSaved();
-    const gradeOptions = [...new Set(allSaved.map((item) => item.grade).filter(Boolean))];
+    const allSaved = highlightSnapshot.all;
+    const titleOptions = [...new Set(allSaved.map((item) => item.dars_sarlavha || item.lessonTitle).filter(Boolean))];
+    const findHighlightLesson = (item) => {
+      if (!item.dars_id) return null;
+      for (const level of getCachedLevels() || []) {
+        const lessonIndex = (level.darslar || []).findIndex((lesson) => String(lesson.id) === String(item.dars_id));
+        if (lessonIndex >= 0) return { levelId: level.id, lessonIndex };
+      }
+      return null;
+    };
     const query = savedSearch.trim().toLocaleLowerCase();
     const filteredSaved = allSaved.filter((item) => {
       const matchesQuery = !query
-        || item.text?.toLocaleLowerCase().includes(query)
-        || item.lessonTitle?.toLocaleLowerCase().includes(query)
-        || item.grade?.toLocaleLowerCase().includes(query);
-      const matchesGrade = savedGradeFilter === 'all' || item.grade === savedGradeFilter;
+        || (item.matn || item.text)?.toLocaleLowerCase().includes(query)
+        || (item.dars_sarlavha || item.lessonTitle)?.toLocaleLowerCase().includes(query);
+      const matchesGrade = savedGradeFilter === 'all'
+        || (item.dars_sarlavha || item.lessonTitle) === savedGradeFilter;
       return matchesQuery && matchesGrade;
     });
     const markerColors = {
@@ -775,15 +794,15 @@ export default function HomePage({
                 className="w-full h-11 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] pl-10 pr-3 text-xs text-[#0F172A] outline-none focus:border-[#38BDF8]"
               />
             </div>
-            {gradeOptions.length > 0 && (
+            {titleOptions.length > 0 && (
               <select
                 value={savedGradeFilter}
                 onChange={(event) => setSavedGradeFilter(event.target.value)}
                 className="w-full h-10 rounded-xl border border-[#E2E8F0] bg-white px-3 text-xs text-[#334155] outline-none"
               >
-                <option value="all">Barcha sinflar</option>
-                {gradeOptions.map((grade) => (
-                  <option key={grade} value={grade}>{grade}</option>
+                <option value="all">Barcha mavzular</option>
+                {titleOptions.map((title) => (
+                  <option key={title} value={title}>{title}</option>
                 ))}
               </select>
             )}
@@ -817,19 +836,26 @@ export default function HomePage({
                 <div className="mt-3 text-[11px] text-[#64748B]">
                   {item.grade || 'Sinf'} <span className="mx-1">•</span> {item.lessonTitle || 'Mavzu'}
                 </div>
+                {!findHighlightLesson(item) && (
+                  <div className="mt-1 text-[10px] font-semibold text-[#DC2626]">Dars topilmadi</div>
+                )}
                 <div className="mt-1 text-[10px] text-[#94A3B8]">
                   {new Date(item.createdAt).toLocaleDateString('uz-UZ', { day: '2-digit', month: 'long', year: 'numeric' })}
                 </div>
                 <div className="mt-3 flex items-center justify-between gap-2">
                   <button
                     type="button"
+                    disabled={!findHighlightLesson(item)}
                     onClick={() => {
+                      const target = findHighlightLesson(item);
+                      if (!target) return;
                       setActiveSubPage(null);
                       onNavigateTab?.('lessons');
                       window.sessionStorage.setItem('tarixiy-open-highlight', JSON.stringify({
-                        levelId: item.levelId,
-                        lessonIndex: item.lessonIndex,
+                        levelId: target.levelId,
+                        lessonIndex: target.lessonIndex,
                         wordIndex: item.startWord,
+                        highlightId: item.id,
                       }));
                     }}
                     className="h-9 px-3 rounded-xl bg-[#0F172A] text-white text-[11px] font-bold active:scale-[0.98]"
@@ -839,8 +865,9 @@ export default function HomePage({
                   <button
                     type="button"
                     onClick={() => {
-                      removeSaved(item.levelId, item.id);
-                      setSavedListTrigger((value) => value + 1);
+                      void removeHighlight(item.id)
+                        .then(() => setSavedListTrigger((value) => value + 1))
+                        .catch((error) => window.alert(error.message));
                     }}
                     aria-label="O'chirish"
                     className="w-9 h-9 rounded-xl bg-[#FEF2F2] text-[#DC2626] flex items-center justify-center"

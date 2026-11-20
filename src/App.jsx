@@ -15,6 +15,12 @@ import FaollikPage from './pages/FaollikPage';
 import { preloadFaollikForSession, subscribeToFaollik, getFaollikSnapshot } from './lib/faollik';
 import SplashScreen from './components/SplashScreen';
 import QuizPage from './pages/QuizPage';
+import {
+  clearHighlightsCache,
+  ensureHighlightAuthListener,
+  migrateLegacyHighlights,
+  loadAll,
+} from './lib/highlights';
 
 const PENDING_SELECTION_KEY = 'tarixiy:pending-selection';
 const ONBOARDING_SEEN_KEY = 'onboarding_seen';
@@ -23,7 +29,6 @@ function clearStudentCaches() {
   const keys = [
     PENDING_SELECTION_KEY,
     'roadmap:progress',
-    'roadmap:saved',
     'roadmap:unlocked',
     'roadmap:completed',
     'roadmap:last-read-level',
@@ -31,6 +36,7 @@ function clearStudentCaches() {
     'tarixiy_current_user',
   ];
   keys.forEach((key) => window.localStorage.removeItem(key));
+  clearHighlightsCache();
 }
 
 function getPendingSelection() {
@@ -123,6 +129,9 @@ function AppEntry() {
           const { data, error } = await supabase.auth.getSession();
           if (error) throw error;
           if (data.session) {
+            void migrateLegacyHighlights()
+              .catch(() => {})
+              .finally(() => { void loadAll().catch(() => {}); });
             navigateToHome();
             if (active) {
               setUserData((current) => current || userDataFromProfile(null));
@@ -150,6 +159,7 @@ function AppEntry() {
 
   useEffect(() => {
     if (!supabase) return undefined;
+    ensureHighlightAuthListener();
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT' || ((event === 'TOKEN_REFRESHED' || event === 'USER_DELETED') && !session)) {
         clearStudentCaches();

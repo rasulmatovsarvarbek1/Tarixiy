@@ -5,6 +5,7 @@ import React, {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -21,13 +22,21 @@ import {
 import {
   getProgress,
   saveProgress,
-  getSaved,
-  addSaved,
-  removeSaved,
-  updateSaved,
   getSettings,
   saveSettings,
 } from '../lib/readerStorage';
+import {
+  addHighlight,
+  getCachedHighlights,
+  getHighlightsSnapshot,
+  loadAll,
+  migrateLegacyHighlights,
+  removeHighlight,
+  setHighlightColor as updateHighlightColor,
+  subscribeToHighlights,
+  updateHighlightPosition,
+  normalizeHighlightColor,
+} from '../lib/highlights';
 import { normalizeLessonText } from '../lib/lessonText';
 import { useLanguage } from '../lib/language';
 import { qoshFaollik } from '../lib/faollik';
@@ -643,11 +652,21 @@ function SettingsPopover({ settings, onChange, theme, onClose }) {
 
 function SavedSheet({ levelId, lessonIndex, lessons, theme, onClose, onNavigate, onChange }) {
   const { language, t } = useLanguage();
-  const items = getSaved(levelId).filter((item) => item.lessonIndex === lessonIndex);
+  const highlightSnapshot = useSyncExternalStore(
+    subscribeToHighlights,
+    getHighlightsSnapshot,
+    getHighlightsSnapshot,
+  );
+  const items = highlightSnapshot.all.filter((item) => {
+    const lesson = lessons[lessonIndex];
+    if (item.dars_id && lesson?.id) return String(item.dars_id) === String(lesson.id);
+    return item.levelId === levelId || item.lessonIndex === lessonIndex;
+  });
 
   const handleDelete = (id) => {
-    removeSaved(levelId, id);
-    onChange?.();
+    void removeHighlight(id)
+      .then(() => onChange?.())
+      .catch((error) => window.alert(error.message));
   };
 
   return (
@@ -1104,7 +1123,83 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
   const [savedTrigger, setSavedTrigger] = useState(0);
 
   // ─── Saqlanganlar (highlights) ───
-  const allSaved = useMemo(() => getSaved(levelId), [levelId, savedTrigger]);
+  const highlightSnapshot = useSyncExternalStore(
+    subscribeToHighlights,
+    getHighlightsSnapshot,
+    getHighlightsSnapshot,
+  );
+  const allSaved = highlightSnapshot.all;
+
+  useEffect(() => {
+    void migrateLegacyHighlights().catch((error) => {
+      console.error(error);
+    });
+  }, []);
+
+  useEffect(() => {
+    void loadAll().catch((error) => {
+      if (error.message !== 'Saqlash uchun tizimga kiring') console.error(error);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!darslar.length || !allSaved.length) return;
+    allSaved.forEach((item) => {
+      const lessonIndex = darslar.findIndex((lesson) => lesson.id && String(lesson.id) === String(item.dars_id));
+      if (lessonIndex < 0) return;
+      const lesson = darslar[lessonIndex];
+      const blocks = lesson?.bloklar?.filter((block) => block.tur === 'matn') || [];
+      let blockIndex = blocks.findIndex((block, index) => (
+        String(block.id || block.kalit || `text-${index}`) === String(item.blok_id)
+      ));
+      let foundText = '';
+      let foundStart = -1;
+      let foundEnd = -1;
+      if (blockIndex >= 0) {
+        const block = blocks[blockIndex];
+        const normalized = normalizeLessonText(block.qiymat || '');
+        foundStart = normalized.indexOf(item.matn);
+        if (foundStart >= 0) {
+          foundText = normalized;
+          foundEnd = foundStart + item.matn.length;
+        }
+      }
+      if (foundStart < 0) {
+        for (let index = 0; index < blocks.length && foundStart < 0; index += 1) {
+          const normalized = normalizeLessonText(blocks[index].qiymat || '');
+          const candidates = [item.matn];
+          if (item.kontekst_oldi || item.kontekst_keyin) {
+            candidates.push(`${item.kontekst_oldi || ''}${item.matn}${item.kontekst_keyin || ''}`.trim());
+          }
+          for (const candidate of candidates) {
+            foundStart = normalized.indexOf(candidate);
+            if (foundStart >= 0) {
+              foundStart += (candidate.startsWith(item.kontekst_oldi || '') && item.kontekst_oldi)
+                ? item.kontekst_oldi.length
+                : 0;
+              foundText = normalized;
+              foundEnd = foundStart + item.matn.length;
+              blockIndex = index;
+              break;
+            }
+          }
+        }
+      }
+      if (foundStart < 0) return;
+      const realBlock = blocks[blockIndex];
+      if (!realBlock) return;
+      const newBlockId = String(realBlock.id || realBlock.kalit || `text-${blockIndex}`).slice(0, 100);
+      if (newBlockId !== item.blok_id || foundStart !== item.boshlanish || foundEnd !== item.tugash) {
+        void updateHighlightPosition(item.id, {
+          blok_id: newBlockId,
+          boshlanish: foundStart,
+          tugash: foundEnd,
+          kontekst_oldi: foundText.slice(Math.max(0, foundStart - 80), foundStart).slice(-80),
+          kontekst_keyin: foundText.slice(foundEnd, foundEnd + 80).slice(0, 80),
+        }).catch((error) => console.error(error));
+      }
+    });
+  }, [darslar, allSaved]);
 
   // ─── textStyle (settings ga bog'liq) ───
   const textStyle = useMemo(() => ({
@@ -1429,24 +1524,59 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
     let endWord = focusSpan ? parseInt(focusSpan.dataset.w) : scr.page.startWord + scr.page.wordCount - 1;
     if (startWord > endWord) [startWord, endWord] = [endWord, startWord];
 
-    addSaved(levelId, {
-      id: uid(),
-      levelId,
-      lessonIndex: scr.lessonIndex,
-      startWord,
-      endWord,
-      text,
-      color: highlightColor,
-      lessonTitle: darslar[scr.lessonIndex]?.sarlavha || darslar[scr.lessonIndex]?.title || '',
-      grade: level?.sinf ? `${level.sinf}-sinf` : '',
-      createdAt: Date.now(),
+    const lesson = darslar[scr.lessonIndex];
+    const textBlocks = (lesson?.bloklar || []).filter((block) => block.tur === 'matn');
+    let block = null;
+    let blockIndex = -1;
+    let blockStart = -1;
+    let normalizedBlock = '';
+    for (let index = 0; index < textBlocks.length; index += 1) {
+      const normalized = normalizeLessonText(textBlocks[index].qiymat || '');
+      const match = normalized.indexOf(text);
+      if (match >= 0) {
+        block = textBlocks[index];
+        blockIndex = index;
+        blockStart = match;
+        normalizedBlock = normalized;
+        break;
+      }
+    }
+    if (!block) {
+      window.alert('Belgilangan matn blok topilmadi');
+      return;
+    }
+    const blockEnd = blockStart + text.length;
+    const lessonId = typeof lesson?.id === 'string'
+      && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(lesson.id)
+      ? lesson.id
+      : null;
+    const fanValue = lesson?.fan === 'ozbekiston'
+      ? 'ozbekiston'
+      : lesson?.fan === 'jahon'
+        ? 'jahon'
+        : null;
+    void addHighlight({
+      dars_id: lessonId,
+      blok_id: String(block.id || block.kalit || `text-${blockIndex}`).slice(0, 100),
+      boshlanish: blockStart,
+      tugash: blockEnd,
+      matn: text.slice(0, 1000),
+      rang: normalizeHighlightColor(highlightColor),
+      kontekst_oldi: normalizedBlock.slice(Math.max(0, blockStart - 80), blockStart),
+      kontekst_keyin: normalizedBlock.slice(blockEnd, blockEnd + 80),
+      dars_sarlavha: String(lesson?.sarlavha || lesson?.title || '').slice(0, 200),
+      fan: fanValue,
+    }).then(() => {
+      sel.removeAllRanges();
+      setSaveBtn(null);
+      setSavedTrigger((t) => t + 1);
+      setHighlightToast("Muhim ma'lumot saqlandi");
+      window.setTimeout(() => setHighlightToast(''), 2200);
+    }).catch((error) => {
+      window.alert(error.message === 'allaqachon saqlangan'
+        ? 'Bu matn allaqachon saqlangan'
+        : error.message);
     });
-
-    sel.removeAllRanges();
-    setSaveBtn(null);
-    setSavedTrigger((t) => t + 1);
-    setHighlightToast("Muhim ma'lumot saqlandi");
-    window.setTimeout(() => setHighlightToast(''), 2200);
   }, [screens, screenIndex, levelId, highlightColor, darslar, level]);
 
   // ─── Tap va Swipe ───
@@ -1514,7 +1644,24 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
 
   // ─── Sahifa elementlarini (matn va rasm) render qilish ───
   const renderPageElements = (elements, lessonIndex) => {
-    const lessonSaved = allSaved.filter((s) => s.lessonIndex === lessonIndex);
+    const lessonSaved = allSaved.filter((s) => (
+      (s.dars_id && darslar[lessonIndex]?.id && String(s.dars_id) === String(darslar[lessonIndex].id))
+      || (!s.dars_id && s.levelId === levelId && s.lessonIndex === lessonIndex)
+      || (!s.dars_id && s.lessonIndex === lessonIndex)
+    ));
+
+    const findItemRange = (item) => {
+      const lesson = darslar[lessonIndex];
+      const normalizedText = (lesson?.bloklar || [])
+        .filter((block) => block.tur === 'matn')
+        .map((block) => normalizeLessonText(block.qiymat || '').replace(/^\[rasm\d+\]$/gm, ''))
+        .join('\n\n');
+      const matchIndex = normalizedText.indexOf(item.matn || item.text || '');
+      if (matchIndex < 0) return null;
+      const before = normalizedText.slice(0, matchIndex).match(/\S+/g) || [];
+      const matched = (item.matn || item.text || '').match(/\S+/g) || [];
+      return { startWord: before.length, endWord: before.length + Math.max(1, matched.length) - 1 };
+    };
 
     const renderParagraph = (el, elIdx) => (
       <p
@@ -1528,12 +1675,12 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
         }}
       >
         {el.words.map((w, wi) => {
-          const isHighlighted = lessonSaved.some(
-            (s) => w.globalWordIndex >= s.startWord && w.globalWordIndex <= s.endWord
-          );
-          const highlightItem = lessonSaved.find(
-            (s) => w.globalWordIndex >= s.startWord && w.globalWordIndex <= s.endWord
-          );
+          const highlightItem = lessonSaved.find((item) => {
+            const range = findItemRange(item);
+            if (range) return w.globalWordIndex >= range.startWord && w.globalWordIndex <= range.endWord;
+            return w.globalWordIndex >= item.startWord && w.globalWordIndex <= item.endWord;
+          });
+          const isHighlighted = Boolean(highlightItem);
           return (
             <React.Fragment key={wi}>
               {wi > 0 && ' '}
@@ -1747,9 +1894,12 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
                     key={key}
                     type="button"
                     onClick={() => {
-                      updateSaved(levelId, highlightMenu.id, { color: key });
-                      setHighlightMenu(null);
-                      setSavedTrigger((value) => value + 1);
+                      void updateHighlightColor(highlightMenu.id, key)
+                        .then(() => {
+                          setHighlightMenu(null);
+                          setSavedTrigger((value) => value + 1);
+                        })
+                        .catch((error) => window.alert(error.message));
                     }}
                     aria-label={option.label}
                     style={{ width: 30, height: 30, borderRadius: 9, border: '1px solid rgba(15,23,42,0.10)', background: option.background, cursor: 'pointer' }}
@@ -1758,9 +1908,12 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
                 <button
                   type="button"
                   onClick={() => {
-                    removeSaved(levelId, highlightMenu.id);
-                    setHighlightMenu(null);
-                    setSavedTrigger((value) => value + 1);
+                    void removeHighlight(highlightMenu.id)
+                      .then(() => {
+                        setHighlightMenu(null);
+                        setSavedTrigger((value) => value + 1);
+                      })
+                      .catch((error) => window.alert(error.message));
                   }}
                   style={{ height: 30, flex: 1, border: 'none', borderRadius: 8, background: '#FEE2E2', color: '#DC2626', fontSize: 11, fontWeight: 800, cursor: 'pointer' }}
                 >

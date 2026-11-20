@@ -6,8 +6,12 @@ import {
   BookOpen,
   CheckCircle2,
   Eye,
+  Flag,
   ImagePlus,
   Plus,
+  Pencil,
+  RefreshCw,
+  RotateCcw,
   Save,
   Trash2,
 } from 'lucide-react';
@@ -47,6 +51,7 @@ function routeFromPath(pathname) {
   }
   const levelMatch = pathname.match(/^\/admin\/level\/([^/]+)\/?$/);
   if (levelMatch) return { page: 'level', levelId: decodeURIComponent(levelMatch[1]) };
+  if (pathname === '/admin/savollar' || pathname === '/admin/savollar/') return { page: 'questions' };
   if (pathname === '/admin' || pathname === '/admin/') return { page: 'home' };
   return { page: 'notFound' };
 }
@@ -426,6 +431,9 @@ function AdminHome({ navigate }) {
       <AdminHeader navigate={navigate} backPath="/" title="Levellar" />
       <main className="mx-auto w-full px-3 py-5 min-[375px]:px-4 sm:px-5 sm:py-7">
         <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          <button type="button" onClick={() => navigate('/admin/savollar')} className={SECONDARY}>
+            <Flag size={18} /> Savollar moderatsiyasi
+          </button>
           <button type="button" disabled={busy || !levels} onClick={handleCreateLevel} className={PRIMARY}>
             <Plus size={18} /> Yangi level qo‘shish
           </button>
@@ -584,6 +592,540 @@ function AdminHome({ navigate }) {
           <span>{operationMessage}</span>
         </div>
       )}
+    </div>
+  );
+}
+
+const QUESTION_STATUSES = [
+  { value: 'tekshiruvda', label: 'Tekshiruvda' },
+  { value: 'chop_etildi', label: 'Chop etilgan' },
+  { value: 'rad_etildi', label: 'Rad etilgan' },
+  { value: 'yashirilgan', label: 'Yashirilgan' },
+];
+const QUESTION_TOPICS = ['Qadimgi davr', "O'rta asrlar", 'Temuriylar'];
+
+function AdminQuestions({ navigate }) {
+  const [status, setStatus] = useState('tekshiruvda');
+  const [questions, setQuestions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [refreshToken, setRefreshToken] = useState(0);
+  const [busyId, setBusyId] = useState(null);
+  const [rejectId, setRejectId] = useState(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [editId, setEditId] = useState(null);
+  const [editValues, setEditValues] = useState(null);
+  const [editError, setEditError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    const loadQuestions = async () => {
+      try {
+        setError('');
+        if (!supabase) throw new Error('Supabase ulanishi sozlanmagan.');
+        const { data: questionRows, error: questionsError } = await supabase
+          .from('savollar')
+          .select('id, matn, mavzu, izoh, manba, anonim, holat, rad_sababi, shikoyat_soni, topdi_soni, yaratilgan, muallif_id')
+          .eq('holat', status)
+          .order('yaratilgan', { ascending: false });
+        if (questionsError) throw questionsError;
+        const rows = questionRows || [];
+        if (rows.length === 0) {
+          if (active) setQuestions([]);
+          return;
+        }
+
+        const questionIds = rows.map((question) => question.id);
+        const authorIds = [...new Set(rows.map((question) => question.muallif_id).filter(Boolean))];
+        const [answersResult, profilesResult, complaintsResult] = await Promise.all([
+          supabase
+            .from('savol_javoblari')
+            .select('savol_id, togri, variantlar')
+            .in('savol_id', questionIds),
+          authorIds.length > 0
+            ? supabase.from('profillar').select('user_id, ism, sinf').in('user_id', authorIds)
+            : Promise.resolve({ data: [], error: null }),
+          supabase
+            .from('shikoyatlar')
+            .select('id, savol_id, sabab, yaratilgan, korib_chiqildi')
+            .in('savol_id', questionIds)
+            .order('yaratilgan', { ascending: false }),
+        ]);
+        if (answersResult.error) throw answersResult.error;
+        if (profilesResult.error) throw profilesResult.error;
+        if (complaintsResult.error) throw complaintsResult.error;
+
+        const answerByQuestion = new Map((answersResult.data || []).map((answer) => [answer.savol_id, answer]));
+        const profileByUser = new Map((profilesResult.data || []).map((profile) => [profile.user_id, profile]));
+        const complaintsByQuestion = new Map();
+        (complaintsResult.data || []).forEach((complaint) => {
+          if (!complaintsByQuestion.has(complaint.savol_id)) complaintsByQuestion.set(complaint.savol_id, []);
+          complaintsByQuestion.get(complaint.savol_id).push(complaint);
+        });
+
+        if (active) {
+          setQuestions(rows.map((question) => ({
+            ...question,
+            javob: answerByQuestion.get(question.id) || null,
+            muallif: profileByUser.get(question.muallif_id) || null,
+            shikoyatlar: complaintsByQuestion.get(question.id) || [],
+          })));
+        }
+      } catch (reason) {
+        if (active) setError(getErrorMessage(reason));
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    void loadQuestions();
+    return () => {
+      active = false;
+    };
+  }, [status, refreshToken]);
+
+  const startEditing = (question) => {
+    const variants = Array.isArray(question.javob?.variantlar) ? question.javob.variantlar : [];
+    setEditId(question.id);
+    setEditError('');
+    setEditValues({
+      matn: question.matn || '',
+      mavzu: question.mavzu || QUESTION_TOPICS[0],
+      izoh: question.izoh || '',
+      manba: question.manba || '',
+      togri: question.javob?.togri || '',
+      variantlar: Array.from({ length: 5 }, (_, index) => variants[index] || ''),
+    });
+  };
+
+  const updateQuestionStatus = async (question, changes, message) => {
+    if (!supabase || busyId) return false;
+    setBusyId(question.id);
+    setError('');
+    setNotice('');
+    try {
+      const { data, error: updateError } = await supabase
+        .from('savollar')
+        .update(changes)
+        .eq('id', question.id)
+        .select('id')
+        .maybeSingle();
+      if (updateError) throw updateError;
+      if (!data) throw new Error('Savol topilmadi yoki holatini yangilashga ruxsat yo‘q.');
+      setNotice(message);
+      setRefreshToken((current) => current + 1);
+      return true;
+    } catch (reason) {
+      setError(getErrorMessage(reason));
+      return false;
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const submitRejection = async (event, question) => {
+    event.preventDefault();
+    const reason = rejectReason.trim();
+    if (!reason || busyId) return;
+    const updated = await updateQuestionStatus(
+      question,
+      { holat: 'rad_etildi', rad_sababi: reason },
+      'Savol rad etildi.',
+    );
+    if (!updated) return;
+    setRejectId(null);
+    setRejectReason('');
+  };
+
+  const submitEdit = async (event, question) => {
+    event.preventDefault();
+    if (!supabase || !editValues || busyId) return;
+    const matn = editValues.matn.trim();
+    const togri = editValues.togri.trim();
+    const variantlar = editValues.variantlar.map((item) => item.trim()).filter(Boolean);
+    if (matn.length < 10 || matn.length > 200) {
+      setEditError('Savol matni 10–200 belgi orasida bo‘lishi kerak.');
+      return;
+    }
+    if (!QUESTION_TOPICS.includes(editValues.mavzu)) {
+      setEditError('Mavzuni tanlang.');
+      return;
+    }
+    if (!togri || togri.length > 60) {
+      setEditError('To‘g‘ri javobni kiriting (ko‘pi bilan 60 belgi).');
+      return;
+    }
+    if (editValues.izoh.length > 300 || editValues.manba.length > 120 || editValues.variantlar.some((item) => item.length > 60)) {
+      setEditError('Izoh, manba yoki variant uzunligi belgilangan chegaradan oshdi.');
+      return;
+    }
+
+    setBusyId(question.id);
+    setEditError('');
+    setError('');
+    try {
+      const { data: updatedQuestion, error: questionError } = await supabase
+        .from('savollar')
+        .update({
+          matn,
+          mavzu: editValues.mavzu,
+          izoh: editValues.izoh.trim(),
+          manba: editValues.manba.trim(),
+        })
+        .eq('id', question.id)
+        .select('id')
+        .maybeSingle();
+      if (questionError) throw questionError;
+      if (!updatedQuestion) throw new Error('Savol topilmadi yoki tahrirlashga ruxsat yo‘q.');
+
+      const { data: updatedAnswer, error: answerError } = await supabase
+        .from('savol_javoblari')
+        .update({ togri, variantlar })
+        .eq('savol_id', question.id)
+        .select('savol_id');
+      if (answerError) throw answerError;
+      if (!updatedAnswer?.length) throw new Error('Savol javoblari topilmadi.');
+
+      setEditId(null);
+      setEditValues(null);
+      setNotice('Savol yangilandi.');
+      setRefreshToken((current) => current + 1);
+    } catch (reason) {
+      setEditError(getErrorMessage(reason));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const markComplaintReviewed = async (question, complaint) => {
+    if (!supabase || busyId) return;
+    setBusyId(complaint.id);
+    setError('');
+    try {
+      const { data, error: updateError } = await supabase
+        .from('shikoyatlar')
+        .update({ korib_chiqildi: true })
+        .eq('id', complaint.id)
+        .select('id')
+        .maybeSingle();
+      if (updateError) throw updateError;
+      if (!data) throw new Error('Shikoyat topilmadi yoki uni yangilashga ruxsat yo‘q.');
+      setQuestions((current) => current.map((item) => (
+        item.id === question.id
+          ? {
+            ...item,
+            shikoyatlar: item.shikoyatlar.map((entry) => (
+              entry.id === complaint.id ? { ...entry, korib_chiqildi: true } : entry
+            )),
+          }
+          : item
+      )));
+      setNotice('Shikoyat ko‘rib chiqildi.');
+    } catch (reason) {
+      setError(getErrorMessage(reason));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const dateLabel = (value) => {
+    if (!value) return 'Sana ko‘rsatilmagan';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString('uz-UZ');
+  };
+
+  return (
+    <div className={PAGE_BG + ' min-h-screen'}>
+      <AdminHeader navigate={navigate} backPath="/admin" title="Savollar moderatsiyasi" />
+      <main className="mx-auto w-full px-3 py-5 min-[375px]:px-4 sm:px-5 sm:py-7">
+        <div className="mb-5 flex flex-col gap-3">
+          <div className="flex flex-wrap gap-2">
+            {QUESTION_STATUSES.map((item) => (
+              <button
+                key={item.value}
+                type="button"
+                onClick={() => {
+                  if (status === item.value) return;
+                  setLoading(true);
+                  setStatus(item.value);
+                }}
+                aria-pressed={status === item.value}
+                className={status === item.value ? PRIMARY : SECONDARY}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => {
+              setLoading(true);
+              setRefreshToken((current) => current + 1);
+            }}
+            className={SECONDARY + ' self-start'}
+          >
+            <RefreshCw size={17} /> Ro‘yxatni yangilash
+          </button>
+        </div>
+
+        {notice && <p role="status" className="mb-4 rounded-xl bg-green-50 p-4 text-sm text-green-800">{notice}</p>}
+        {error && (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-red-50 p-4 text-sm text-red-700">
+            <p role="alert">{error}</p>
+            <button
+              type="button"
+              onClick={() => {
+                setLoading(true);
+                setRefreshToken((current) => current + 1);
+              }}
+              className="font-semibold underline"
+            >
+              Qayta urinish
+            </button>
+          </div>
+        )}
+        {loading && questions.length === 0 && <AdminSkeleton rows={3} />}
+        {loading && questions.length > 0 && <p className="mb-3 text-sm text-[#6F6A62]">Yuklanmoqda...</p>}
+        {!loading && !error && questions.length === 0 && (
+          <p className="rounded-xl border border-[#E9E2D8] bg-white p-6 text-center text-sm text-[#6F6A62]">
+            Bu holatda savollar yo‘q.
+          </p>
+        )}
+
+        <div className="space-y-4">
+          {questions.map((question) => {
+            const statusLabel = QUESTION_STATUSES.find((item) => item.value === question.holat)?.label || question.holat;
+            const authorLabel = question.anonim
+              ? 'Anonim'
+              : question.muallif?.ism || 'Muallif profili topilmadi';
+            const authorGrade = question.muallif?.sinf
+              ? (String(question.muallif.sinf).includes('sinf') ? question.muallif.sinf : `${question.muallif.sinf}-sinf`)
+              : '';
+            const editing = editId === question.id && editValues;
+
+            return (
+              <article key={question.id} className="rounded-2xl border border-[#E9E2D8] bg-white p-4 shadow-sm sm:p-5">
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-[#FBF2DB] px-2.5 py-1 text-xs font-semibold text-[#805F25]">{statusLabel}</span>
+                  <span className="rounded-full bg-[#F6F1E9] px-2.5 py-1 text-xs text-[#6F6A62]">{question.mavzu}</span>
+                  {question.anonim && <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-700">Anonim</span>}
+                </div>
+                <p className="whitespace-pre-wrap break-words font-semibold leading-relaxed text-[#2A2A2A]">{question.matn}</p>
+                <p className="mt-2 text-xs text-[#6F6A62]">
+                  {authorLabel}{authorGrade ? ` · ${authorGrade}` : ''} · {dateLabel(question.yaratilgan)}
+                </p>
+                <div className="mt-3 grid gap-1 text-sm text-[#514B43]">
+                  <p><span className="font-semibold">Izoh:</span> {question.izoh || '—'}</p>
+                  <p><span className="font-semibold">Manba:</span> {question.manba || '—'}</p>
+                  <p><span className="font-semibold">Javob:</span> {question.javob?.togri || 'Javob topilmadi'}</p>
+                  <p><span className="font-semibold">Variantlar:</span> {Array.isArray(question.javob?.variantlar) && question.javob.variantlar.length
+                    ? question.javob.variantlar.join(', ')
+                    : '—'}</p>
+                  <p className="text-xs text-[#6F6A62]">
+                    Topdi: {question.topdi_soni || 0} · Shikoyatlar: {question.shikoyat_soni || 0}
+                  </p>
+                </div>
+                {question.rad_sababi && (
+                  <p className="mt-2 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+                    Rad etish sababi: {question.rad_sababi}
+                  </p>
+                )}
+
+                {question.shikoyatlar.length > 0 && (
+                  <section className="mt-4 rounded-xl border border-[#E9E2D8] bg-[#FBF7F2] p-3">
+                    <h3 className="mb-2 flex items-center gap-2 text-sm font-bold text-[#2A2A2A]">
+                      <Flag size={16} /> Shikoyatlar ({question.shikoyatlar.length})
+                    </h3>
+                    <div className="space-y-2">
+                      {question.shikoyatlar.map((complaint) => (
+                        <div key={complaint.id} className="flex flex-col gap-2 rounded-lg bg-white p-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="min-w-0">
+                            <p className="whitespace-pre-wrap break-words text-sm text-[#514B43]">{complaint.sabab}</p>
+                            <p className="mt-1 text-xs text-[#6F6A62]">{dateLabel(complaint.yaratilgan)}</p>
+                            {complaint.korib_chiqildi && <p className="mt-1 text-xs font-semibold text-green-700">Ko‘rib chiqildi</p>}
+                          </div>
+                          {!complaint.korib_chiqildi && (
+                            <button
+                              type="button"
+                              disabled={busyId === complaint.id || busyId !== null}
+                              onClick={() => void markComplaintReviewed(question, complaint)}
+                              className={SECONDARY + ' shrink-0'}
+                            >
+                              <CheckCircle2 size={16} /> Ko‘rib chiqildi
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {editing ? (
+                  <form onSubmit={(event) => void submitEdit(event, question)} className="mt-4 space-y-3 rounded-xl border border-[#E9E2D8] bg-[#FBF7F2] p-3">
+                    <label className="block text-sm font-semibold text-[#514B43]">
+                      Savol matni
+                      <textarea
+                        required
+                        minLength={10}
+                        maxLength={200}
+                        rows={3}
+                        value={editValues.matn}
+                        onChange={(event) => setEditValues((current) => ({ ...current, matn: event.target.value }))}
+                        className={FIELD + ' mt-1'}
+                      />
+                    </label>
+                    <label className="block text-sm font-semibold text-[#514B43]">
+                      Mavzu
+                      <select
+                        value={editValues.mavzu}
+                        onChange={(event) => setEditValues((current) => ({ ...current, mavzu: event.target.value }))}
+                        className={FIELD + ' mt-1'}
+                      >
+                        {!QUESTION_TOPICS.includes(editValues.mavzu) && <option value={editValues.mavzu}>{editValues.mavzu}</option>}
+                        {QUESTION_TOPICS.map((topic) => <option key={topic} value={topic}>{topic}</option>)}
+                      </select>
+                    </label>
+                    <label className="block text-sm font-semibold text-[#514B43]">
+                      Izoh
+                      <textarea
+                        maxLength={300}
+                        rows={2}
+                        value={editValues.izoh}
+                        onChange={(event) => setEditValues((current) => ({ ...current, izoh: event.target.value }))}
+                        className={FIELD + ' mt-1'}
+                      />
+                    </label>
+                    <label className="block text-sm font-semibold text-[#514B43]">
+                      Manba
+                      <input
+                        maxLength={120}
+                        value={editValues.manba}
+                        onChange={(event) => setEditValues((current) => ({ ...current, manba: event.target.value }))}
+                        className={FIELD + ' mt-1'}
+                      />
+                    </label>
+                    <label className="block text-sm font-semibold text-[#514B43]">
+                      To‘g‘ri javob
+                      <input
+                        required
+                        maxLength={60}
+                        value={editValues.togri}
+                        onChange={(event) => setEditValues((current) => ({ ...current, togri: event.target.value }))}
+                        className={FIELD + ' mt-1'}
+                      />
+                    </label>
+                    <fieldset className="space-y-2">
+                      <legend className="text-sm font-semibold text-[#514B43]">Variantlar (5 tagacha)</legend>
+                      {editValues.variantlar.map((variant, index) => (
+                        <input
+                          key={index}
+                          maxLength={60}
+                          aria-label={`Variant ${index + 1}`}
+                          placeholder={`Variant ${index + 1}`}
+                          value={variant}
+                          onChange={(event) => setEditValues((current) => ({
+                            ...current,
+                            variantlar: current.variantlar.map((item, itemIndex) => (
+                              itemIndex === index ? event.target.value : item
+                            )),
+                          }))}
+                          className={FIELD}
+                        />
+                      ))}
+                    </fieldset>
+                    {editError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{editError}</p>}
+                    <div className="flex flex-wrap gap-2">
+                      <button type="submit" disabled={busyId === question.id || busyId !== null} className={PRIMARY}>
+                        <Save size={17} /> {busyId === question.id ? 'Saqlanmoqda...' : 'Saqlash'}
+                      </button>
+                      <button type="button" disabled={busyId !== null} onClick={() => {
+                        setEditId(null);
+                        setEditValues(null);
+                        setEditError('');
+                      }} className={SECONDARY}>Bekor qilish</button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={busyId !== null}
+                      onClick={() => startEditing(question)}
+                      className={SECONDARY}
+                    >
+                      <Pencil size={16} /> Tahrirlash
+                    </button>
+                    {question.holat === 'tekshiruvda' && (
+                      <>
+                        <button
+                          type="button"
+                          disabled={busyId !== null}
+                          onClick={() => void updateQuestionStatus(question, { holat: 'chop_etildi', rad_sababi: null }, 'Savol chop etildi.')}
+                          className={PRIMARY}
+                        >
+                          <CheckCircle2 size={16} /> Chop etish
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busyId !== null}
+                          onClick={() => {
+                            setRejectId(question.id);
+                            setRejectReason('');
+                          }}
+                          className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Rad etish
+                        </button>
+                      </>
+                    )}
+                    {question.holat === 'chop_etildi' && (
+                      <button
+                        type="button"
+                        disabled={busyId !== null}
+                        onClick={() => void updateQuestionStatus(question, { holat: 'yashirilgan' }, 'Savol yashirildi.')}
+                        className={SECONDARY}
+                      >
+                        <Eye size={16} /> Yashirish
+                      </button>
+                    )}
+                    {question.holat === 'yashirilgan' && (
+                      <button
+                        type="button"
+                        disabled={busyId !== null}
+                        onClick={() => void updateQuestionStatus(question, { holat: 'chop_etildi', shikoyat_soni: 0 }, 'Savol qayta ochildi.')}
+                        className={PRIMARY}
+                      >
+                        <RotateCcw size={16} /> Qayta ochish
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {rejectId === question.id && (
+                  <form onSubmit={(event) => void submitRejection(event, question)} className="mt-3 space-y-2 rounded-xl bg-red-50 p-3">
+                    <label className="block text-sm font-semibold text-red-800">
+                      Rad etish sababi
+                      <textarea
+                        required
+                        maxLength={200}
+                        rows={2}
+                        value={rejectReason}
+                        onChange={(event) => setRejectReason(event.target.value)}
+                        className="mt-1 w-full rounded-xl border border-red-200 bg-white px-3 py-2.5 text-sm text-[#2A2A2A] outline-none focus:border-red-400"
+                      />
+                    </label>
+                    <div className="flex gap-2">
+                      <button type="submit" disabled={busyId !== null} className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Rad etish</button>
+                      <button type="button" disabled={busyId !== null} onClick={() => setRejectId(null)} className={SECONDARY}>Bekor qilish</button>
+                    </div>
+                  </form>
+                )}
+              </article>
+            );
+          })}
+        </div>
+      </main>
     </div>
   );
 }
@@ -1401,6 +1943,7 @@ export default function AdminPage() {
   if (route.page === 'lesson') {
     page = <LessonEditor key={`${route.levelId}:${route.lessonId}`} levelId={route.levelId} lessonId={route.lessonId} navigate={navigate} onDirtyChange={changeDirty} />;
   }
+  if (route.page === 'questions') page = <AdminQuestions navigate={navigate} />;
   if (route.page === 'home') page = <AdminHome navigate={navigate} />;
   if (!page) {
     page = (
