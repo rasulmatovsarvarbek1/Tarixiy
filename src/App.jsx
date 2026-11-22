@@ -5,12 +5,12 @@ import RoadmapPage from './pages/RoadmapPage';
 import ResourcesPage from './pages/ResourcesPage';
 import ProfilePage from './pages/ProfilePage';
 import BottomNav from './components/layout/BottomNav';
-import { dashboardData } from './data/dashboardData';
 import AdminPage from './pages/AdminPage';
 import { preloadAdminDataForSession } from './lib/lessons';
 import { LanguageProvider } from './lib/language';
 import Onboarding from './components/Onboarding';
 import { supabase } from './lib/supabase';
+import { getTelegramDisplayName } from './lib/telegramDisplayName';
 import FaollikPage from './pages/FaollikPage';
 import { preloadFaollikForSession, subscribeToFaollik, getFaollikSnapshot } from './lib/faollik';
 import SplashScreen from './components/SplashScreen';
@@ -32,7 +32,7 @@ function clearStudentCaches() {
     'roadmap:unlocked',
     'roadmap:completed',
     'roadmap:last-read-level',
-    'tarixiy:daily-quiz:attempts',
+    'tarixiy:quiz-session',
     'tarixiy_current_user',
   ];
   keys.forEach((key) => window.localStorage.removeItem(key));
@@ -71,13 +71,28 @@ function navigateToEntry() {
   }
 }
 
-function userDataFromProfile(profile) {
+function userDataFromProfile(profile, user = null) {
   return {
-    fullName: profile?.ism || dashboardData.userName,
+    fullName: getTelegramDisplayName(profile, user),
     phone: '',
     gradeLevel: profile?.sinf || 9,
     track: profile?.yonalish === 'dtm' ? 'national_certificate' : 'full_history',
   };
+}
+
+async function loadUserProfile(user) {
+  if (!supabase || !user?.id) {
+    throw new Error('Foydalanuvchi profili uchun sessiya topilmadi.');
+  }
+
+  const { data: profile, error } = await supabase
+    .from('profillar')
+    .select('sinf, yonalish, ism')
+    .eq('user_id', user.id)
+    .maybeSingle();
+  if (error) throw error;
+
+  return profile;
 }
 
 function isFaollikPath(pathname) {
@@ -129,12 +144,13 @@ function AppEntry() {
           const { data, error } = await supabase.auth.getSession();
           if (error) throw error;
           if (data.session) {
+            const profile = await loadUserProfile(data.session.user);
             void migrateLegacyHighlights()
               .catch(() => {})
               .finally(() => { void loadAll().catch(() => {}); });
             navigateToHome();
             if (active) {
-              setUserData((current) => current || userDataFromProfile(null));
+              setUserData(userDataFromProfile(profile, data.session.user));
               setEntryState('app');
             }
             return;
@@ -293,21 +309,18 @@ function AppEntry() {
       const currentUserId = authData.session?.user?.id || authData.user?.id;
       if (!currentUserId) throw new Error('Kirish sessiyasi yaratilmadi. Yangi kod olib qayta urinib ko‘ring.');
 
-      const { data: profile, error: profileError } = await supabase
-        .from('profillar')
-        .select('sinf, yonalish, ism')
-        .maybeSingle();
-      if (profileError) throw profileError;
+      const currentUser = authData.session?.user || authData.user;
+      const profile = await loadUserProfile(currentUser);
 
       if (!profile) {
         removePendingSelection();
-        setUserData(userDataFromProfile(null));
+        setUserData(userDataFromProfile(null, currentUser));
         navigateToHome();
         setEntryState('app');
         return;
       }
 
-      setUserData(userDataFromProfile(profile));
+      setUserData(userDataFromProfile(profile, currentUser));
       if (profile.yonalish) {
         removePendingSelection();
         navigateToHome();
@@ -521,10 +534,12 @@ function MainApp({ userData: initialUserData, onLogout }) {
   };
 
   const [isLessonOpen, setIsLessonOpen] = useState(false);
+  const [isResourcesGamesOpen, setIsResourcesGamesOpen] = useState(false);
 
-  // Faqat darslik o'qilayotganda (BookReader) pastdagi navbar yashiriladi.
-  // Boshqa barcha sahifalar va bo'limlarda navbar DOIMO ko'rinadi!
-  const shouldHideBottomNav = isLessonOpen || quizPath;
+  // Darslik, viktorina yoki Resurslar bo'limining O'yinlar sahifasi ochilganda navbar yashiriladi.
+  // Boshqa barcha sahifalarda navbar DOIMO ko'rinadi.
+  const isResourcesTab = activeTab === 'resources' || activeTab === 'more';
+  const shouldHideBottomNav = isLessonOpen || quizPath || (isResourcesTab && isResourcesGamesOpen);
 
   return (
     <div className="min-h-screen bg-[#F1F5F9] text-[#1E293B] flex justify-center selection:bg-[#E8B84B] selection:text-[#0D1117]">
@@ -574,7 +589,7 @@ function MainApp({ userData: initialUserData, onLogout }) {
 
               {/* RESOURCES / MORE */}
               <div key={`resources-${activeTab}`} style={{ display: !activityPath && !quizPath && (activeTab === 'resources' || activeTab === 'more') ? 'block' : 'none' }} className="page-transition book-page">
-                <ResourcesPage />
+                <ResourcesPage onGamesOpenChange={setIsResourcesGamesOpen} />
               </div>
 
               {/* PROFILE */}

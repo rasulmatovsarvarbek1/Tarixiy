@@ -17,6 +17,8 @@ import {
 } from '../lib/readerStorage';
 import { useLanguage } from '../lib/language';
 import { subscribeToFaollik, getFaollikSnapshot } from '../lib/faollik';
+import QuizPage from './QuizPage';
+import { imtihonHolati } from '../services/quizService';
 
 // SVG 4-burchakli yulduz (#FFD800)
 function GoldenStar({ size = 24, className = "" }) {
@@ -127,6 +129,7 @@ export default function RoadmapPage({ onNavigate, onLevelOpenChange, resumeActio
   const [selectedLevel, setSelectedLevel] = useState(null);
   const [readerLevel, setReaderLevel] = useState(null);
   const [readerError, setReaderError] = useState('');
+  const [quizLaunch, setQuizLaunch] = useState(null);
 
   const roadmapLevels = useMemo(
     () => (levels || [])
@@ -156,6 +159,21 @@ export default function RoadmapPage({ onNavigate, onLevelOpenChange, resumeActio
 
   // ─── Completed holati (localStorage dan); faqat birinchi level ochiq ───
   const [completedIds, setCompletedIds] = useState(() => getCompleted());
+  const [passedLevelIds, setPassedLevelIds] = useState([]);
+
+  useEffect(() => {
+    if (!roadmapLevels.length) return;
+    let active = true;
+    Promise.all(roadmapLevels.map(async (level) => {
+      try {
+        const status = await imtihonHolati(level.id);
+        return status?.ok && status.otgan ? String(level.id) : null;
+      } catch {
+        return null;
+      }
+    })).then((ids) => active && setPassedLevelIds(ids.filter(Boolean)));
+    return () => { active = false; };
+  }, [roadmapLevels]);
 
   const getPrevLevelName = useCallback((progressionId) => {
     const previous = roadmapLevels.find((level) => level.progressionId === progressionId - 1);
@@ -163,7 +181,11 @@ export default function RoadmapPage({ onNavigate, onLevelOpenChange, resumeActio
   }, [roadmapLevels, t]);
   const getLocalizedLevelName = (name) => name.replace(/(\d+)\s+Level/i, (_, number) => `${number} ${t('Level')}`);
 
-  const isUnlocked = useCallback((levelId) => levelId === 1, []);
+  const isUnlocked = useCallback((progressionId) => {
+    if (progressionId === 1) return true;
+    const previous = roadmapLevels.find((level) => level.progressionId === progressionId - 1);
+    return Boolean(previous && passedLevelIds.includes(String(previous.id)));
+  }, [roadmapLevels, passedLevelIds]);
   const isCompleted = useCallback((levelId) => completedIds.includes(levelId), [completedIds]);
 
   const getProgress = useCallback((levelId) => {
@@ -272,15 +294,32 @@ export default function RoadmapPage({ onNavigate, onLevelOpenChange, resumeActio
     setCompletedIds(newCompleted);
     saveCompleted(newCompleted);
 
+    const lastLesson = readerLevel?.darslar?.[readerLevel.darslar.length - 1];
+    setQuizLaunch(lastLesson?.id ? {
+      tur: newCompleted.length > 0 && newCompleted.length % 3 === 0 ? 'imtihon' : 'mini',
+      darsId: lastLesson.id,
+      levelId: selectedLevel.id,
+    } : null);
     setSelectedLevel(null);
     onLevelOpenChange?.(false);
-  }, [completedIds, onLevelOpenChange, selectedLevel]);
+  }, [completedIds, onLevelOpenChange, selectedLevel, readerLevel]);
 
   useEffect(() => {
     return () => {
       onLevelOpenChange?.(false);
     };
   }, [onLevelOpenChange]);
+
+  if (quizLaunch) {
+    return (
+      <QuizPage
+        tur={quizLaunch.tur}
+        darsId={quizLaunch.darsId}
+        levelId={quizLaunch.levelId}
+        onNavigateHome={() => setQuizLaunch(null)}
+      />
+    );
+  }
 
   if (selectedLevel) {
     if (readerError) {

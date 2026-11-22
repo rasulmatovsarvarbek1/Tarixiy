@@ -76,7 +76,7 @@
 .quiz-hero-card {
   position: relative;
   display: flex;
-  min-height: 208px;
+  min-height: 198px;
   align-items: center;
   overflow: hidden;
   border-radius: 29px;

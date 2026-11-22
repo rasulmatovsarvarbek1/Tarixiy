@@ -42,6 +42,7 @@ import {
   subscribeToHighlights,
 } from '../lib/highlights';
 import { getCachedLevels } from '../lib/lessons';
+import { kunlikTestHolati } from '../services/quizService';
 
 
 const FOUR_BUTTONS = [
@@ -135,6 +136,15 @@ export default function HomePage({
   const [promoCopied, setPromoCopied] = useState(false);
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [isTransitionEnabled, setIsTransitionEnabled] = useState(true);
+  const [dailyQuizStatus, setDailyQuizStatus] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    kunlikTestHolati()
+      .then((data) => active && setDailyQuizStatus(data))
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
 
   const [refStep, setRefStep] = useState(0);
   const [showFriendsList, setShowFriendsList] = useState(false);
@@ -1272,6 +1282,13 @@ export default function HomePage({
                   <h3 className="font-black text-[18px] sm:text-[21px] tracking-[0.08em] uppercase truncate select-none leading-none text-white">
                     {t(btn.title)}
                   </h3>
+                  {btn.id === 'quiz' && (
+                    <p className="mt-1 text-xs font-semibold text-white/90">
+                      {dailyQuizStatus?.bajarildi
+                        ? `Bugun: ${Number(dailyQuizStatus.bugun_togri) || 0}/${Number(dailyQuizStatus.bugun_jami) || 0}`
+                        : 'Bugun: boshlanmagan'}
+                    </p>
+                  )}
                 </div>
               </div>
 

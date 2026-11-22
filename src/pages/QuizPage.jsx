@@ -1,393 +1,332 @@
-import { useEffect, useMemo, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect, useRef, useState } from 'react';
+import { ArrowLeft, ArrowRight, Check, Clock3, X, Zap } from 'lucide-react';
 import {
-  ArrowLeft,
-  ArrowRight,
-  CalendarDays,
-  Check,
-  ChevronRight,
-  Clock3,
-  Flame,
-  History,
-  X,
-  Zap,
-} from 'lucide-react';
-import {
-  getAttempts,
-  getDailyQuestions,
-  getTodayQuizDate,
-  saveAttempt,
+  clearQuizSession,
+  getStoredQuizSession,
+  storeQuizSession,
+  testBoshlash,
+  testHolat,
+  testJavob,
+  testTugat,
+  kunlikTestHolati,
+  imtihonHolati,
 } from '../services/quizService';
+import { refreshHolat } from '../lib/faollik';
 import QuizDrakoBlink from '../components/QuizDrakoBlink';
 import './QuizPage.css';
 
-function formatDate(date) {
-  const [year, month, day] = date.split('-').map(Number);
-  const monthNames = [
-    'yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun',
-    'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr',
-  ];
-  return `${day}-${monthNames[month - 1]} ${year}`;
+function xatoXabari(error) {
+  if (error === 'kut') return 'Juda ko‘p urinish, biroz kuting';
+  if (error === 'savol_yoq' || error === 'savol_yetarli_emas') return 'Bu mavzu uchun savollar hali tayyor emas';
+  return 'Internetga ulanib qayta urinib ko‘ring';
 }
 
-function streakCount(attempts, today) {
-  const completed = new Set(attempts.map((attempt) => attempt.date));
-  const cursor = new Date(`${today}T12:00:00`);
-  let count = 0;
-  while (completed.has(`${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`)) {
-    count += 1;
-    cursor.setDate(cursor.getDate() - 1);
-  }
-  return count;
-}
-
-function answerSnapshot(question, selectedIndex) {
-  return {
-    questionId: question.id,
-    type: question.type,
-    text: question.text,
-    options: question.options,
-    correctIndex: question.correctIndex,
-    selectedIndex,
-    explanation: question.explanation,
-    unitId: question.unitId,
-    lessonId: question.lessonId,
-    difficulty: question.difficulty,
-  };
-}
-
-function loadAttempts() {
-  try {
-    return { attempts: getAttempts(), error: '' };
-  } catch (error) {
-    console.error('Quiz tarixini yuklab bo‘lmadi:', error);
-    return {
-      attempts: [],
-      error: 'Quiz tarixini yuklab bo‘lmadi. Brauzer xotirasini tekshiring.',
-    };
-  }
-}
-
-function Drako({ isCorrect }) {
-  return (
-    <img
-      className="quiz-drako"
-      src={isCorrect ? '/drako-image/drako1.png' : '/drako-image/drako-quizX.png'}
-      alt="Drako"
-    />
-  );
-}
-
-function MiniProgress({ score, total }) {
-  return (
-    <span className="quiz-mini-progress" aria-label={`${score}/${total} to‘g‘ri javob`}>
-      {Array.from({ length: total }, (_, index) => (
-        <i key={index} className={index < score ? 'is-correct' : ''} />
-      ))}
-    </span>
-  );
-}
-
-function AnswerReview({ answers }) {
-  return (
-    <div className="quiz-review-list">
-      {answers.map((answer, index) => (
-        <article className="quiz-review-card" key={`${answer.questionId}-${index}`}>
-          <div className="quiz-review-heading">
-            <span className="quiz-review-number">{index + 1}</span>
-            <p>{answer.text}</p>
-          </div>
-          <p className="quiz-review-answer is-wrong">
-            Sizning javobingiz: {answer.options[answer.selectedIndex]}
-          </p>
-          <p className="quiz-review-answer is-right">
-            To‘g‘ri javob: {answer.options[answer.correctIndex]}
-          </p>
-          <p className="quiz-review-explanation">{answer.explanation}</p>
-        </article>
-      ))}
-    </div>
-  );
-}
-
-export default function QuizPage({ onNavigateHome }) {
-  const today = getTodayQuizDate();
-  const questions = useMemo(() => getDailyQuestions(today), [today]);
-  const [attemptState, setAttemptState] = useState(loadAttempts);
-  const { attempts, error: storageError } = attemptState;
+export default function QuizPage({
+  onNavigateHome,
+  tur: initialTur = 'kunlik',
+  darsId = null,
+  levelId = null,
+}) {
+  const tur = initialTur;
   const [screen, setScreen] = useState('intro');
-  const [questionIndex, setQuestionIndex] = useState(0);
-  const [selectedIndex, setSelectedIndex] = useState(null);
-  const [showHistory, setShowHistory] = useState(false);
-  const [selectedAttempt, setSelectedAttempt] = useState(null);
-  const [showReview, setShowReview] = useState(false);
-  const [questionSelections, setQuestionSelections] = useState({});
-  const [showExitConfirm, setShowExitConfirm] = useState(false);
-  const [exitCountdown, setExitCountdown] = useState(3);
+  const [sessionId, setSessionId] = useState(() => getStoredQuizSession());
+  const [active, setActive] = useState(null);
+  const [selected, setSelected] = useState(null);
+  const [answerResult, setAnswerResult] = useState(null);
+  const [remaining, setRemaining] = useState(0);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [daily, setDaily] = useState(null);
+  const [examStatus, setExamStatus] = useState(null);
+  const stoppedRef = useRef(false);
 
-  const todayAttempt = attempts.find((attempt) => attempt.date === today);
-  const question = questions[questionIndex];
+  const refreshXp = () => {
+    void refreshHolat().catch(() => {});
+  };
 
   useEffect(() => {
-    if (!showExitConfirm) return undefined;
+    let activeRequest = true;
+    if (tur === 'kunlik') {
+      kunlikTestHolati()
+        .then((data) => activeRequest && setDaily(data))
+        .catch(() => activeRequest && setDaily(null));
+    }
+    if (tur === 'imtihon' && levelId) {
+      imtihonHolati(levelId)
+        .then((data) => activeRequest && setExamStatus(data))
+        .catch(() => activeRequest && setError('Internetga ulanib qayta urinib ko‘ring'));
+    }
+    return () => { activeRequest = false; };
+  }, [tur, levelId]);
 
-    const intervalId = window.setInterval(() => {
-      setExitCountdown((countdown) => {
-        if (countdown <= 1) {
-          window.clearInterval(intervalId);
+  useEffect(() => {
+    if (!sessionId) return;
+    let activeRequest = true;
+    testHolat(sessionId)
+      .then((data) => {
+        if (!activeRequest) return;
+        if (data?.ok && data.tugadi) {
+          clearQuizSession();
+          setSessionId(null);
+          setResult(data.natija);
+          setScreen('result');
+          refreshXp();
+        } else if (data?.ok) {
+          setActive(data);
+          setRemaining(Number(data.qolgan_soniya) || 0);
+          setScreen('question');
+        } else {
+          clearQuizSession();
+          setSessionId(null);
+          setError(xatoXabari(data?.xato));
+        }
+      })
+      .catch(() => activeRequest && setError('Internetga ulanib qayta urinib ko‘ring'));
+    return () => { activeRequest = false; };
+  }, [sessionId]);
+
+  useEffect(() => {
+    if (screen !== 'question' || !active || remaining <= 0 || answerResult) return undefined;
+    const timer = window.setInterval(() => {
+      setRemaining((value) => {
+        if (value <= 1) {
+          window.clearInterval(timer);
+          void submitAnswer(-1);
           return 0;
         }
-        return countdown - 1;
+        return value - 1;
       });
     }, 1000);
+    return () => window.clearInterval(timer);
+  }, [screen, active?.savol?.id, remaining, answerResult]);
 
-    return () => window.clearInterval(intervalId);
-  }, [showExitConfirm]);
+  useEffect(() => {
+    if (tur !== 'imtihon' || screen !== 'question') return undefined;
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') void stopExam();
+    };
+    const onPop = () => void stopExam();
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('popstate', onPop);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('popstate', onPop);
+    };
+  }, [tur, screen, sessionId]);
 
-  const startQuiz = () => {
-    setQuestionIndex(0);
-    setSelectedIndex(null);
-    setQuestionSelections({});
-    setShowReview(false);
-    setScreen('question');
+  useEffect(() => {
+    if (tur !== 'imtihon' || screen !== 'question') return undefined;
+    const prevent = (event) => event.preventDefault();
+    const oldUserSelect = document.body.style.userSelect;
+    document.body.style.userSelect = 'none';
+    document.addEventListener('contextmenu', prevent);
+    document.addEventListener('copy', prevent);
+    document.addEventListener('cut', prevent);
+    document.addEventListener('selectstart', prevent);
+    return () => {
+      document.body.style.userSelect = oldUserSelect;
+      document.removeEventListener('contextmenu', prevent);
+      document.removeEventListener('copy', prevent);
+      document.removeEventListener('cut', prevent);
+      document.removeEventListener('selectstart', prevent);
+    };
+  }, [tur, screen]);
+
+  const startTest = async () => {
+    if (loading) return;
+    setLoading(true);
+    setError('');
+    setAnswerResult(null);
+    setSelected(null);
+    try {
+      const data = await testBoshlash({ tur, darsId, levelId });
+      if (!data?.ok) {
+        setError(xatoXabari(data?.xato));
+        setScreen('intro');
+        return;
+      }
+      if (data.tugadi) {
+        setResult(data.natija);
+        setScreen('result');
+        refreshXp();
+        return;
+      }
+      storeQuizSession(data.sessiya_id);
+      setSessionId(data.sessiya_id);
+      setActive(data);
+      setRemaining(Number(data.qolgan_soniya) || 0);
+      setScreen('question');
+    } catch {
+      setError('Internetga ulanib qayta urinib ko‘ring');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const goToNextQuestion = () => {
-    if (selectedIndex === null) return;
-    if (questionIndex < questions.length - 1) {
-      setQuestionIndex((index) => index + 1);
-      setSelectedIndex(null);
+  const submitAnswer = async (variant) => {
+    if (!sessionId || !active?.savol || loading) return;
+    setLoading(true);
+    setError('');
+    try {
+      const data = await testJavob({
+        sessiyaId: sessionId,
+        savolId: active.savol.id,
+        variant,
+      });
+      if (!data?.ok) {
+        setError(xatoXabari(data?.xato));
+        return;
+      }
+      setAnswerResult(data);
+      refreshXp();
+      if (data.tugadi) {
+        clearQuizSession();
+        setResult(data.natija);
+        setSessionId(null);
+      }
+    } catch {
+      setError('Internetga ulanib qayta urinib ko‘ring');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const selectAnswer = (variant) => {
+    if (selected !== null || answerResult || loading) return;
+    setSelected(variant);
+  };
+
+  const goNext = () => {
+    if (!answerResult) return;
+    if (answerResult.tugadi) {
+      setScreen('result');
       return;
     }
-
-    const answers = questions.map((item, index) => answerSnapshot(
-      item,
-      index === questionIndex ? selectedIndex : questionSelections[index],
-    ));
-    const score = answers.filter((answer) => answer.selectedIndex === answer.correctIndex).length;
-    try {
-      const saved = saveAttempt({ date: today, score, total: questions.length, answers });
-      if (saved) awardXp(5);
-      setAttemptState({ attempts: getAttempts(), error: '' });
-      setScreen('result');
-    } catch (error) {
-      console.error('Quiz natijasini saqlab bo‘lmadi:', error);
-      setAttemptState((previous) => ({
+    if (answerResult.keyingi?.savol) {
+      setActive((previous) => ({
         ...previous,
-        error: 'Natijani saqlab bo‘lmadi. Iltimos, qayta urinib ko‘ring.',
+        joriy: answerResult.keyingi.joriy,
+        qolgan_soniya: answerResult.keyingi.qolgan_soniya,
+        savol: answerResult.keyingi.savol,
       }));
+      setRemaining(Number(answerResult.keyingi.qolgan_soniya) || 0);
+      setSelected(null);
+      setAnswerResult(null);
     }
   };
 
-  const selectAnswer = (index) => {
-    if (selectedIndex !== null) return;
-    setSelectedIndex(index);
-    setQuestionSelections((previous) => ({ ...previous, [questionIndex]: index }));
+  const stopExam = async () => {
+    if (stoppedRef.current || !sessionId) return;
+    stoppedRef.current = true;
+    try {
+      await testTugat(sessionId);
+    } catch {
+      // Foydalanuvchi xabari asosiy holatda saqlanadi.
+    }
+    clearQuizSession();
+    setSessionId(null);
+    setResult({ bekor: true });
+    setScreen('stopped');
   };
 
-  const historyAttempts = attempts.filter((attempt) => attempt.date < today);
-  const incorrectAnswers = (todayAttempt?.answers || []).filter(
-    (answer) => answer.selectedIndex !== answer.correctIndex,
-  );
-  const currentStreak = streakCount(attempts, today);
-
-  if (showHistory) {
+  if (screen === 'stopped') {
     return (
       <main className="quiz-page page-transition">
-        <header className="quiz-topbar">
-          <button className="quiz-icon-button" type="button" aria-label="Tarixdan qaytish" onClick={() => {
-            if (selectedAttempt) {
-              setSelectedAttempt(null);
-            } else {
-              setShowHistory(false);
-            }
-          }}>
-            <ArrowLeft size={21} />
-          </button>
-          <div className="quiz-topbar-title">
-            <span className="quiz-eyebrow">MINI-QUIZ</span>
-            <h1>{selectedAttempt ? formatDate(selectedAttempt.date) : 'Quiz tarixi'}</h1>
-          </div>
-          <span className="quiz-topbar-spacer" />
-        </header>
-
-        {selectedAttempt ? (
-          <section className="quiz-history-detail">
-            <div className="quiz-history-score">
-              <span>{selectedAttempt.score}/{selectedAttempt.total}</span>
-              <MiniProgress score={selectedAttempt.score} total={selectedAttempt.total} />
-            </div>
-            <AnswerReview answers={selectedAttempt.answers || []} />
-          </section>
-        ) : (
-          <section className="quiz-history-content">
-            <p className="quiz-section-caption">Oldingi kunlardagi natijalaringiz</p>
-            {historyAttempts.length === 0 ? (
-              <div className="quiz-empty-state">
-                <History size={28} />
-                <strong>Hozircha tarix bo‘sh</strong>
-                <span>Yechilgan quizlaringiz shu yerda ko‘rinadi.</span>
-              </div>
-            ) : historyAttempts.map((attempt) => (
-              <button
-                type="button"
-                className="quiz-history-row"
-                key={attempt.date}
-                onClick={() => setSelectedAttempt(attempt)}
-              >
-                <span className="quiz-history-date-icon"><CalendarDays size={18} /></span>
-                <span className="quiz-history-row-copy">
-                  <strong>{formatDate(attempt.date)}</strong>
-                  <MiniProgress score={attempt.score} total={attempt.total} />
-                </span>
-                <span className="quiz-history-result">{attempt.score}/{attempt.total}</span>
-                <ChevronRight size={19} />
-              </button>
-            ))}
-          </section>
-        )}
+        <section className="quiz-result-content">
+          <h2>Imtihon to‘xtatildi</h2>
+          <button type="button" className="quiz-primary-button" onClick={onNavigateHome}>Bosh sahifaga</button>
+        </section>
       </main>
     );
   }
 
-  if (screen === 'question') {
+  if (screen === 'result' && result) {
+    const passed = result.otdi;
+    return (
+      <main className="quiz-page page-transition">
+        <header className="quiz-topbar">
+          <span className="quiz-topbar-spacer" />
+          <div className="quiz-topbar-title"><span className="quiz-eyebrow">NATIJA</span><h1>Test yakuni</h1></div>
+          <span className="quiz-topbar-spacer" />
+        </header>
+        <section className="quiz-result-content">
+          <div className="quiz-result-orbit"><Check size={33} /></div>
+          <h2>{Number(result.foiz) || 0}<span>%</span></h2>
+          <p className="quiz-result-kicker">{result.togri_soni}/{result.jami} to‘g‘ri javob</p>
+          {Number(result.xp_jami) > 0 && <div className="quiz-xp-pill"><Zap size={18} fill="currentColor" /> +{result.xp_jami} XP</div>}
+          {tur === 'imtihon' && (
+            <p className="quiz-no-mistakes">{passed ? 'O‘tdi' : 'O‘tmadi, qayta urinib ko‘ring'}</p>
+          )}
+          <div className="quiz-result-actions">
+            <button type="button" className="quiz-primary-button" onClick={onNavigateHome}>Bosh sahifaga</button>
+            {!passed && (
+              <button type="button" className="quiz-secondary-button" onClick={() => { setScreen('intro'); setResult(null); }}>Qayta urinish</button>
+            )}
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  if (screen === 'question' && active?.savol) {
+    const question = active.savol;
+    const total = active.jami || 10;
+    const current = Number(active.joriy) || 0;
+    const submitted = Boolean(answerResult);
     return (
       <main className="quiz-page quiz-question-page page-transition">
         <header className="quiz-question-topbar">
-          <div className="quiz-progress-track" aria-label={`Savol ${questionIndex + 1}, jami ${questions.length}`}>
-            {questions.map((item, index) => (
-              <span key={item.id} className={index <= questionIndex ? 'is-active' : ''} />
+          <div className="quiz-progress-track" aria-label={`Savol ${current + 1}, jami ${total}`}>
+            {Array.from({ length: total }, (_, index) => (
+              <span key={index} className={index <= current ? 'is-active' : ''} />
             ))}
           </div>
-          <span className="quiz-question-count">{questionIndex + 1}/{questions.length}</span>
-          <button className="quiz-icon-button quiz-close-button" type="button" aria-label="Yopish" onClick={() => {
-            setExitCountdown(3);
-            setShowExitConfirm(true);
-          }}>
-            <X size={21} />
-          </button>
+          <span className="quiz-question-count">{current + 1}/{total}</span>
+          <span className="quiz-question-count"><Clock3 size={15} /> {remaining}s</span>
         </header>
-
         <section className="quiz-question-content">
-          <div className="quiz-question-label"><span>BUGUNGI SAVOL</span><span>{question.type === 'tf' ? 'TO‘G‘RI / NOTO‘G‘RI' : question.type === 'year' ? 'YILNI TOPING' : 'TEST'}</span></div>
-          <h1>{question.text}</h1>
+          <h1>{question.matn}</h1>
           <div className="quiz-options">
-            {question.options.map((option, index) => {
-              const isSelected = selectedIndex === index;
-              const isCorrect = selectedIndex !== null && index === question.correctIndex;
-              const isWrong = isSelected && index !== question.correctIndex;
+            {(question.variantlar || []).map((variant) => {
+              const isSelected = selected === variant.i;
+              const isCorrect = submitted && answerResult.togri_variant === variant.i;
+              const isWrong = submitted && isSelected && answerResult.togri_variant !== variant.i;
               return (
                 <button
                   type="button"
                   className={`quiz-option${isCorrect ? ' is-correct' : ''}${isWrong ? ' is-wrong' : ''}`}
-                  key={option}
-                  disabled={selectedIndex !== null}
-                  onClick={() => selectAnswer(index)}
+                  key={variant.i}
+                  disabled={selected !== null || submitted || loading}
+                  onClick={() => selectAnswer(variant.i)}
                 >
-                  <span className="quiz-option-letter">{question.type === 'tf' ? (index === 0 ? '✓' : '×') : String.fromCharCode(65 + index)}</span>
-                  <span>{option}</span>
+                  <span className="quiz-option-letter">{String.fromCharCode(65 + variant.i)}</span>
+                  <span>{variant.t}</span>
                   {isCorrect && <Check size={19} />}
                   {isWrong && <X size={19} />}
                 </button>
               );
             })}
           </div>
+          {selected !== null && !submitted && (
+            <button type="button" className="quiz-primary-button quiz-next-button" disabled={loading} onClick={() => submitAnswer(selected)}>
+              Javob berish
+            </button>
+          )}
         </section>
-
-        {selectedIndex !== null && (
-          <section className={`quiz-feedback${selectedIndex === question.correctIndex ? ' is-correct' : ' is-wrong'}`}>
-            <div className="quiz-feedback-mascot"><Drako isCorrect={selectedIndex === question.correctIndex} /></div>
+        {submitted && (
+          <section className={`quiz-feedback${answerResult.togri ? ' is-correct' : ' is-wrong'}`}>
             <div className="quiz-feedback-copy">
-              <strong>{selectedIndex === question.correctIndex ? 'Ajoyib!' : 'To‘g‘ri javob'}</strong>
-              <p>{question.explanation}</p>
-              <button className="quiz-primary-button quiz-next-button" type="button" onClick={goToNextQuestion}>
-                {questionIndex === questions.length - 1 ? 'Natijani ko‘rish' : 'Keyingi'}
-                <ArrowRight size={18} />
+              <strong>{answerResult.togri ? 'To‘g‘ri!' : (answerResult.vaqt_tugadi ? 'Vaqt tugadi' : 'Xato')}</strong>
+              {answerResult.izoh && <p>{answerResult.izoh}</p>}
+              {Number(answerResult.xp) > 0 && <p>+{answerResult.xp} XP</p>}
+              <button className="quiz-primary-button quiz-next-button" type="button" onClick={goNext}>
+                {answerResult.tugadi ? 'Natijani ko‘rish' : 'Keyingi'} <ArrowRight size={18} />
               </button>
             </div>
           </section>
         )}
-        {showExitConfirm && (
-          createPortal(
-            <div className="quiz-exit-overlay">
-              <section
-                className="quiz-exit-dialog"
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="quiz-exit-title"
-              >
-                <h2 id="quiz-exit-title">Haqiqatdan ham chiqishni xohlaysizmi?</h2>
-                <div className="quiz-exit-actions">
-                  <button
-                    className="quiz-exit-button quiz-exit-confirm"
-                    type="button"
-                    disabled={exitCountdown > 0}
-                    onClick={onNavigateHome}
-                  >
-                    {exitCountdown > 0 && <span aria-live="polite">{exitCountdown}</span>}
-                    HA
-                  </button>
-                  <button
-                    className="quiz-exit-button quiz-exit-cancel"
-                    type="button"
-                    onClick={() => setShowExitConfirm(false)}
-                  >
-                    YO‘Q
-                  </button>
-                </div>
-              </section>
-            </div>,
-            document.body,
-          )
-        )}
-        {storageError && <p className="quiz-storage-error" role="alert">{storageError}</p>}
-      </main>
-    );
-  }
-
-  if (screen === 'result' && todayAttempt) {
-    return (
-      <main className="quiz-page page-transition">
-        <header className="quiz-topbar">
-          <span className="quiz-topbar-spacer" />
-          <div className="quiz-topbar-title">
-            <span className="quiz-eyebrow">BUGUNGI MINI-QUIZ</span>
-            <h1>Natija</h1>
-          </div>
-          <span className="quiz-topbar-spacer" />
-        </header>
-        <section className="quiz-result-content">
-          <div className="quiz-result-orbit"><Check size={33} /></div>
-          <p className="quiz-result-kicker">Barakalla, yakunladingiz!</p>
-          <h2>{todayAttempt.score}<span>/{todayAttempt.total}</span></h2>
-          <div className="quiz-xp-pill"><Zap size={18} fill="currentColor" /> +5 XP</div>
-          <div className="quiz-streak-card">
-            <div className="quiz-streak-icon"><Flame size={23} fill="currentColor" /></div>
-            <div><strong>{currentStreak} kunlik streak</strong><span>Har kuni quiz yechib davom eting</span></div>
-            <span className="quiz-streak-dots">✦ ✦ ✦</span>
-          </div>
-          <div className="quiz-result-progress">
-            <span>Bugungi natijangiz</span>
-            <MiniProgress score={todayAttempt.score} total={todayAttempt.total} />
-          </div>
-          <div className="quiz-result-actions">
-            <button type="button" className="quiz-primary-button" onClick={onNavigateHome}>Bosh sahifaga</button>
-            <button type="button" className="quiz-secondary-button" onClick={() => setShowReview(true)}>
-              Xatolarni ko‘rish <ArrowRight size={17} />
-            </button>
-          </div>
-          {showReview && (
-            <div className="quiz-review-section">
-              <div className="quiz-inline-heading">
-                <div><span className="quiz-eyebrow">TAKRORLASH</span><h3>Xatolar ustida ishlaymiz</h3></div>
-                <button type="button" aria-label="Xatolarni yopish" onClick={() => setShowReview(false)}><X size={19} /></button>
-              </div>
-              {incorrectAnswers.length > 0
-                ? <AnswerReview answers={incorrectAnswers} />
-                : <p className="quiz-no-mistakes">Ajoyib! Barcha savollarga to‘g‘ri javob berdingiz.</p>}
-            </div>
-          )}
-        </section>
+        {error && <p className="quiz-storage-error" role="alert">{error}</p>}
       </main>
     );
   }
@@ -395,64 +334,61 @@ export default function QuizPage({ onNavigateHome }) {
   return (
     <main className="quiz-page page-transition">
       <header className="quiz-topbar">
-        <button className="quiz-icon-button" type="button" aria-label="Bosh sahifaga" onClick={onNavigateHome}>
-          <ArrowLeft size={21} />
-        </button>
+        <button className="quiz-icon-button" type="button" aria-label="Bosh sahifaga" onClick={onNavigateHome}><ArrowLeft size={21} /></button>
         <div className="quiz-topbar-title">
-          <span className="quiz-eyebrow">TARIXIY • HAR KUN YANGI</span>
-          <h1>Kunlik quiz</h1>
+          <span className="quiz-eyebrow">{tur === 'imtihon' ? 'UNIT IMTIHONI' : tur === 'mini' ? 'DARS MINI-TESTI' : 'TARIXIY • HAR KUN YANGI'}</span>
+          <h1>{tur === 'imtihon' ? 'Imtihon' : tur === 'mini' ? 'Mini-test' : 'Kunlik quiz'}</h1>
         </div>
         <span className="quiz-topbar-spacer" />
       </header>
-
       <section className="quiz-intro-content">
-        <div className="quiz-hero-card">
-          <div className="quiz-hero-sparkle">✦</div>
-          <div className="quiz-hero-copy">
-            <span className="quiz-hero-tag"><Clock3 size={14} /> 2 DAQIQA</span>
-            <h2>Bugungi mini-quiz</h2>
-            <p>Bilimingizni sinab ko‘ring va streakni davom ettiring.</p>
-          </div>
-          <QuizDrakoBlink />
-          <span className="quiz-hero-shape quiz-hero-shape-one" />
-          <span className="quiz-hero-shape quiz-hero-shape-two" />
-        </div>
-
-        <div className="quiz-intro-stats">
-          <span><Check size={16} /> 5 savol</span>
-          <i />
-          <span><Clock3 size={16} /> ~2 daqiqa</span>
-          <i />
-          <span><Zap size={16} /> +5 XP</span>
-        </div>
-
-        {todayAttempt ? (
+        {tur === 'imtihon' && examStatus && (
           <div className="quiz-completed-card">
-            <div className="quiz-completed-icon"><Check size={22} /></div>
-            <div>
-              <strong>Bugungi quiz bajarildi</strong>
-              <p>{todayAttempt.score}/{todayAttempt.total}, +5 XP</p>
-              <span>Yangi test ertaga</span>
-            </div>
+            <div><strong>Eng yaxshi natija: {Number(examStatus.eng_yaxshi_foiz) || 0}%</strong><p>O‘tish: {Number(examStatus.otish_foiz) || 95}%</p></div>
           </div>
-        ) : (
-          <button type="button" className="quiz-primary-button quiz-start-button" onClick={startQuiz} disabled={Boolean(storageError)}>
-            Boshlaymiz <ArrowRight size={19} />
-          </button>
         )}
-        {storageError && <p className="quiz-storage-error" role="alert">{storageError}</p>}
-
-        <button type="button" className="quiz-history-link" onClick={() => setShowHistory(true)}>
-          <span className="quiz-history-link-icon"><History size={18} /></span>
-          <span><strong>Tarix</strong><small>Oldingi kunlardagi natijalar</small></span>
-          <ChevronRight size={19} />
-        </button>
-        <p className="quiz-daily-note"><span>✦</span> Har kuni yangi 5 ta savol</p>
+        {tur === 'imtihon' && examStatus?.tayyor === false ? (
+          <p className="quiz-storage-error" role="status">Imtihon savollari tayyorlanmoqda</p>
+        ) : (
+          <>
+            <div className="quiz-hero-card">
+              <div className="quiz-hero-sparkle">✦</div>
+              <div className="quiz-hero-copy">
+                <span className="quiz-hero-tag"><Clock3 size={14} /> 2 DAQIQA</span>
+                <h2>{tur === 'imtihon' ? 'Unit imtihoni' : tur === 'mini' ? 'Mini-test' : 'Bugungi mini-quiz'}</h2>
+                <p>{tur === 'imtihon' ? 'Vaqt ichida savollarga javob bering.' : 'Bilimingizni sinab ko‘ring.'}</p>
+              </div>
+              <QuizDrakoBlink />
+              <span className="quiz-hero-shape quiz-hero-shape-one" />
+              <span className="quiz-hero-shape quiz-hero-shape-two" />
+            </div>
+            {tur === 'kunlik' && (
+              <div className="quiz-intro-stats">
+                <span><Check size={16} /> 10 savol</span>
+                <i />
+                <span><Clock3 size={16} /> ~2 daqiqa</span>
+                <i />
+                <span><Zap size={16} /> XP</span>
+              </div>
+            )}
+            <button type="button" className="quiz-primary-button quiz-start-button" onClick={startTest} disabled={loading || (tur === 'imtihon' && examStatus?.tayyor === false)}>
+              {loading ? 'Yuklanmoqda...' : 'Boshlaymiz'} <ArrowRight size={19} />
+            </button>
+            {tur === 'kunlik' && (
+              <button type="button" className="quiz-history-link" aria-label="Quiz tarixi">
+                <span className="quiz-history-link-icon"><Clock3 size={18} /></span>
+                <span><strong>Tarix</strong><small>Oldingi kunlardagi natijalar</small></span>
+                <ArrowRight size={19} />
+              </button>
+            )}
+            {tur === 'kunlik' && (
+              <p className="quiz-daily-note"><span>✦</span> Har kuni yangi 10 ta savol</p>
+            )}
+            <div className="quiz-footer-mark">TARIXIY <span>•</span> BILIM SARI HAR KUN</div>
+          </>
+        )}
+        {error && <p className="quiz-storage-error" role="alert">{error}</p>}
       </section>
-      <div className="quiz-footer-mark">TARIXIY <span>•</span> BILIM SARI HAR KUN</div>
     </main>
   );
 }
-
-// Hozirgi loyihada kunlik XP berish mexanizmi mavjud emas.
-function awardXp() {}

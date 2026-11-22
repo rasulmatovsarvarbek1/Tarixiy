@@ -14,6 +14,7 @@ import {
   RotateCcw,
   Save,
   Trash2,
+  ChevronRight,
 } from 'lucide-react';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import BookReader, { getImagePageNumbers } from '../components/BookReader';
@@ -52,6 +53,8 @@ function routeFromPath(pathname) {
   const levelMatch = pathname.match(/^\/admin\/level\/([^/]+)\/?$/);
   if (levelMatch) return { page: 'level', levelId: decodeURIComponent(levelMatch[1]) };
   if (pathname === '/admin/savollar' || pathname === '/admin/savollar/') return { page: 'questions' };
+  if (pathname === '/admin/savollar-moderatsiyasi' || pathname === '/admin/savollar-moderatsiyasi/') return { page: 'moderation' };
+  if (pathname === '/admin/levellar' || pathname === '/admin/levellar/') return { page: 'levels' };
   if (pathname === '/admin' || pathname === '/admin/') return { page: 'home' };
   return { page: 'notFound' };
 }
@@ -161,6 +164,84 @@ function DeleteConfirmModal({ target, isDeleting, error, onClose, onConfirm }) {
 }
 
 function AdminHome({ navigate }) {
+  const [pullDistance, setPullDistance] = useState(0);
+  const pullStartRef = useRef(0);
+  const pullingRef = useRef(false);
+
+  useEffect(() => {
+    if (!window.matchMedia('(pointer: coarse)').matches) return undefined;
+
+    const handleTouchStart = (event) => {
+      if (window.scrollY <= 0) {
+        pullStartRef.current = event.touches[0].clientY;
+        pullingRef.current = true;
+      }
+    };
+    const handleTouchMove = (event) => {
+      if (!pullingRef.current || window.scrollY > 0) return;
+      const distance = Math.max(0, event.touches[0].clientY - pullStartRef.current);
+      setPullDistance(Math.min(distance * 0.45, 72));
+    };
+    const handleTouchEnd = () => {
+      if (pullDistance >= 54) window.location.reload();
+      pullingRef.current = false;
+      setPullDistance(0);
+    };
+
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    window.addEventListener('touchmove', handleTouchMove, { passive: true });
+    window.addEventListener('touchend', handleTouchEnd, { passive: true });
+    return () => {
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [pullDistance]);
+
+  const menuItems = [
+    { title: 'Levellar', text: 'Levellar, darslar, qo‘shish, tahrirlash va o‘chirish', icon: BookOpen, path: '/admin/levellar' },
+    { title: 'Quiz test', text: 'Quiz savollarini qo‘shish va boshqarish', icon: Flag, path: '/admin/savollar' },
+    { title: 'Savollar moderatsiyasi', text: 'Foydalanuvchi savollari va shikoyatlar', icon: Eye, path: '/admin/savollar-moderatsiyasi' },
+  ];
+
+  return (
+    <div className={PAGE_BG + ' min-h-screen'}>
+      {pullDistance > 0 && (
+        <div
+          className="fixed left-1/2 top-2 z-[100000] -translate-x-1/2 rounded-full border border-[#E9E2D8] bg-white px-4 py-2 text-xs font-semibold text-[#514B43] shadow-lg"
+          style={{ marginTop: `${pullDistance}px` }}
+        >
+          {pullDistance >= 54 ? 'Yangilash uchun qo‘yib yuboring' : 'Pastga torting'}
+        </div>
+      )}
+      <AdminHeader navigate={navigate} backPath="/" title="Admin panel" />
+      <main className="mx-auto w-full space-y-3 px-3 py-5 min-[375px]:px-4 sm:px-5 sm:py-7">
+        {menuItems.map((item) => {
+          const Icon = item.icon;
+          return (
+            <button
+              key={item.path}
+              type="button"
+              onClick={() => navigate(item.path)}
+              className="flex w-full items-center gap-4 rounded-2xl border border-[#E9E2D8] bg-white p-4 text-left shadow-sm transition hover:border-[#E8B84B] active:scale-[0.99]"
+            >
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#FBF2DB] text-[#9A7A3B]">
+                <Icon size={22} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <strong className="block text-base text-[#2A2A2A]">{item.title}</strong>
+                <span className="mt-1 block text-sm leading-relaxed text-[#6F6A62]">{item.text}</span>
+              </span>
+              <ChevronRight size={20} className="shrink-0 text-[#9A7A3B]" />
+            </button>
+          );
+        })}
+      </main>
+    </div>
+  );
+}
+
+function AdminLevels({ navigate }) {
   const [levels, setLevels] = useState(() => getCachedAdminLevels());
   const [isLoading, setIsLoading] = useState(() => !getCachedAdminLevels());
   const loading = isLoading && !levels;
@@ -428,12 +509,9 @@ function AdminHome({ navigate }) {
 
   return (
     <div className={PAGE_BG + ' min-h-screen'}>
-      <AdminHeader navigate={navigate} backPath="/" title="Levellar" />
+      <AdminHeader navigate={navigate} backPath="/admin" title="Levellar" />
       <main className="mx-auto w-full px-3 py-5 min-[375px]:px-4 sm:px-5 sm:py-7">
         <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-          <button type="button" onClick={() => navigate('/admin/savollar')} className={SECONDARY}>
-            <Flag size={18} /> Savollar moderatsiyasi
-          </button>
           <button type="button" disabled={busy || !levels} onClick={handleCreateLevel} className={PRIMARY}>
             <Plus size={18} /> Yangi level qo‘shish
           </button>
@@ -604,7 +682,7 @@ const QUESTION_STATUSES = [
 ];
 const QUESTION_TOPICS = ['Qadimgi davr', "O'rta asrlar", 'Temuriylar'];
 
-function AdminQuestions({ navigate }) {
+function AdminLegacyQuestions({ navigate }) {
   const [status, setStatus] = useState('tekshiruvda');
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1125,6 +1203,300 @@ function AdminQuestions({ navigate }) {
             );
           })}
         </div>
+      </main>
+    </div>
+  );
+}
+
+function AdminQuestions({ navigate }) {
+  const [levels, setLevels] = useState([]);
+  const [questions, setQuestions] = useState([]);
+  const [selectedGrade, setSelectedGrade] = useState('');
+  const [selectedLevelId, setSelectedLevelId] = useState('');
+  const [editingId, setEditingId] = useState(null);
+  const [form, setForm] = useState({
+    lessonId: '',
+    matn: '',
+    variants: ['', '', '', ''],
+    togri: '',
+    izoh: '',
+    qiyinlik: 1,
+    faol: true,
+  });
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+
+  const lessonById = new Map(levels.flatMap((level) => (level.darslar || []).map((lesson) => [String(lesson.id), lesson])));
+  const grades = [...new Set(levels.map((level) => Number(level.sinf)).filter(Boolean))].sort((a, b) => a - b);
+  const gradeLevels = levels.filter((level) => !selectedGrade || Number(level.sinf) === Number(selectedGrade));
+  const gradeLessons = gradeLevels.flatMap((level) => (level.darslar || []).map((lesson) => ({ ...lesson, levelId: level.id })));
+  const visibleLessons = gradeLessons.filter((lesson) => (
+    !selectedLevelId || String(lesson.levelId) === String(selectedLevelId)
+  ));
+
+  const lessonQuestionCount = (lessonId) => questions.filter((question) => String(question.dars_id) === String(lessonId)).length;
+  const levelQuestionCount = (levelId) => {
+    const lessonIds = new Set((levels.find((level) => String(level.id) === String(levelId))?.darslar || []).map((lesson) => String(lesson.id)));
+    return questions.filter((question) => lessonIds.has(String(question.dars_id))).length;
+  };
+
+  const loadData = async () => {
+    if (!supabase) {
+      setError('Supabase ulanishi sozlanmagan.');
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      const [levelsResult, questionsResult] = await Promise.all([
+        supabase.from('levels').select('id,sinf,tartib,nom').order('sinf').order('tartib'),
+        supabase.from('test_savollari').select('id,dars_id,matn,variantlar,togri,izoh,qiyinlik,faol').order('matn'),
+      ]);
+      if (levelsResult.error) throw levelsResult.error;
+      if (questionsResult.error) throw questionsResult.error;
+      const levelRows = levelsResult.data || [];
+      const lessonResult = await supabase
+        .from('lessons')
+        .select('id,level_id,tartib,sarlavha,holat')
+        .order('tartib');
+      if (lessonResult.error) throw lessonResult.error;
+      const lessonRows = lessonResult.data || [];
+      setLevels(levelRows.map((level) => ({
+        ...level,
+        darslar: lessonRows.filter((lesson) => String(lesson.level_id) === String(level.id)),
+      })));
+      setQuestions(questionsResult.data || []);
+    } catch (reason) {
+      setError(getErrorMessage(reason));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadData();
+  }, []);
+
+  const resetForm = (keepLesson = false) => {
+    setEditingId(null);
+    setForm((current) => ({
+      lessonId: keepLesson ? current.lessonId : '',
+      matn: '',
+      variants: ['', '', '', ''],
+      togri: '',
+      izoh: '',
+      qiyinlik: 1,
+      faol: true,
+    }));
+  };
+
+  const startEdit = (question) => {
+    setEditingId(question.id);
+    setForm({
+      lessonId: question.dars_id,
+      matn: question.matn || '',
+      variants: Array.isArray(question.variantlar) ? [...question.variantlar].slice(0, 4) : ['', '', '', ''],
+      togri: String(question.togri),
+      izoh: question.izoh || '',
+      qiyinlik: question.qiyinlik || 1,
+      faol: question.faol !== false,
+    });
+  };
+
+  const validate = () => {
+    const matn = form.matn.trim();
+    const variants = form.variants.map((item) => item.trim());
+    if (matn.length < 10 || matn.length > 300) return 'Savol matni 10–300 belgi orasida bo‘lishi kerak.';
+    if (!form.lessonId) return 'Darsni tanlang.';
+    if (variants.some((item) => !item || item.length > 120)) return 'Barcha 4 ta variantni 1–120 belgi bilan to‘ldiring.';
+    if (new Set(variants.map((item) => item.toLocaleLowerCase())).size !== 4) return 'Variantlar takrorlanmasligi kerak.';
+    if (form.togri === '' || ![0, 1, 2, 3].includes(Number(form.togri))) return 'To‘g‘ri variantni belgilang.';
+    if (form.izoh.length > 300) return 'Izoh 300 belgidan oshmasligi kerak.';
+    if (![1, 2, 3].includes(Number(form.qiyinlik))) return 'Qiyinlik 1, 2 yoki 3 bo‘lishi kerak.';
+    return '';
+  };
+
+  const saveQuestion = async (keepForAnother = false) => {
+    const validationError = validate();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+    if (!supabase) return;
+    setBusy(true);
+    setError('');
+    setNotice('');
+    const payload = {
+      dars_id: form.lessonId,
+      matn: form.matn.trim(),
+      variantlar: form.variants.map((item) => item.trim()),
+      togri: Number(form.togri),
+      izoh: form.izoh.trim() || null,
+      qiyinlik: Number(form.qiyinlik),
+      faol: form.faol,
+    };
+    try {
+      const request = editingId
+        ? supabase.from('test_savollari').update(payload).eq('id', editingId)
+        : supabase.from('test_savollari').insert(payload);
+      const { error: saveError } = await request;
+      if (saveError) throw saveError;
+      setNotice(editingId ? 'Savol yangilandi.' : 'Savol qo‘shildi.');
+      resetForm(keepForAnother);
+      await loadData();
+    } catch (reason) {
+      const message = reason?.code === '23505'
+        ? 'Bunday savol allaqachon mavjud.'
+        : 'Bazaga saqlab bo‘lmadi. Ma’lumotlarni tekshirib, qayta urinib ko‘ring.';
+      setError(message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const toggleQuestion = async (question) => {
+    if (!supabase) return;
+    setBusy(true);
+    setError('');
+    try {
+      const { error: updateError } = await supabase
+        .from('test_savollari')
+        .update({ faol: !question.faol })
+        .eq('id', question.id);
+      if (updateError) throw updateError;
+      setNotice(question.faol ? 'Savol faolsizlashtirildi.' : 'Savol faollashtirildi.');
+      await loadData();
+    } catch {
+      setError('Savol holatini yangilab bo‘lmadi.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const deleteQuestion = async (question) => {
+    if (!window.confirm(`Savolni o‘chirishni tasdiqlaysizmi?\n\n${question.matn}`)) return;
+    if (!supabase) return;
+    setBusy(true);
+    setError('');
+    try {
+      const { error: deleteError } = await supabase.from('test_savollari').delete().eq('id', question.id);
+      if (deleteError) throw deleteError;
+      setNotice('Savol o‘chirildi.');
+      await loadData();
+    } catch {
+      setError('Savolni o‘chirib bo‘lmadi.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className={PAGE_BG + ' min-h-screen'}>
+      <AdminHeader navigate={navigate} backPath="/admin" title="Quiz savollari" />
+      <main className="mx-auto w-full px-3 py-5 min-[375px]:px-4 sm:px-5 sm:py-7">
+        {notice && <p role="status" className="mb-4 rounded-xl bg-green-50 p-4 text-sm text-green-800">{notice}</p>}
+        {error && <p role="alert" className="mb-4 rounded-xl bg-red-50 p-4 text-sm text-red-700">{error}</p>}
+        <section className="mb-5 rounded-2xl border border-[#E9E2D8] bg-white p-4">
+          <h2 className="mb-3 text-base font-bold">{editingId ? 'Savolni tahrirlash' : 'Yangi savol qo‘shish'}</h2>
+          <div className="grid gap-3">
+            <select className={FIELD} value={selectedGrade} onChange={(event) => { setSelectedGrade(event.target.value); setSelectedLevelId(''); }}>
+              <option value="">Barcha sinflar</option>
+              {grades.map((grade) => <option key={grade} value={grade}>{grade}-sinf</option>)}
+            </select>
+            <select className={FIELD} value={selectedLevelId} onChange={(event) => setSelectedLevelId(event.target.value)}>
+              <option value="">Barcha levellar</option>
+              {gradeLevels.map((level) => <option key={level.id} value={level.id}>{level.nom}</option>)}
+            </select>
+            {form.lessonId ? (
+              <div className="rounded-xl border border-[#E9E2D8] bg-[#FAF8F4] px-3 py-2.5 text-sm text-[#514B43]">
+                Tanlangan dars: <strong>{lessonById.get(String(form.lessonId))?.sarlavha || 'Dars'}</strong>
+              </div>
+            ) : (
+              <p className="rounded-xl border border-dashed border-[#DED8CE] px-3 py-3 text-sm text-[#6F6A62]">
+                Savol qo‘shish uchun pastdagi darsning “Qo‘shish” tugmasini bosing.
+              </p>
+            )}
+            <textarea className={FIELD + ' min-h-24'} maxLength={300} placeholder="Savol matni (10–300 belgi)" value={form.matn} onChange={(event) => setForm((current) => ({ ...current, matn: event.target.value }))} />
+            {form.variants.map((variant, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <input type="radio" name="togri-variant" checked={Number(form.togri) === index} onChange={() => setForm((current) => ({ ...current, togri: String(index) }))} aria-label={`${index + 1}-variant to‘g‘ri`} />
+                <input className={FIELD} maxLength={120} placeholder={`${index + 1}-variant`} value={variant} onChange={(event) => setForm((current) => ({ ...current, variants: current.variants.map((item, itemIndex) => itemIndex === index ? event.target.value : item) }))} />
+              </div>
+            ))}
+            <textarea className={FIELD} maxLength={300} placeholder="Izoh (ixtiyoriy)" value={form.izoh} onChange={(event) => setForm((current) => ({ ...current, izoh: event.target.value }))} />
+            <select className={FIELD} value={form.qiyinlik} onChange={(event) => setForm((current) => ({ ...current, qiyinlik: Number(event.target.value) }))}>
+              <option value={1}>1 — Oson</option><option value={2}>2 — O‘rtacha</option><option value={3}>3 — Qiyin</option>
+            </select>
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.faol} onChange={(event) => setForm((current) => ({ ...current, faol: event.target.checked }))} /> Faol</label>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" disabled={busy} className={PRIMARY} onClick={() => saveQuestion(false)}><Save size={17} /> Saqlash</button>
+              <button type="button" disabled={busy} className={SECONDARY} onClick={() => saveQuestion(true)}>Saqlash va yana qo‘shish</button>
+              {editingId && <button type="button" className={SECONDARY} onClick={() => resetForm(false)}>Bekor qilish</button>}
+            </div>
+          </div>
+        </section>
+
+        {loading ? <AdminSkeleton rows={3} /> : (
+          <div className="space-y-4">
+            {gradeLevels.map((level) => (
+              <section key={level.id} className="rounded-2xl border border-[#E9E2D8] bg-white p-4">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <h2 className="font-bold">{level.nom}</h2>
+                  <span className={`rounded-full px-3 py-1 text-xs font-bold ${levelQuestionCount(level.id) < 20 ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-800'}`}>
+                    Jami: {levelQuestionCount(level.id)} savol
+                  </span>
+                </div>
+                {(level.darslar || []).filter((lesson) => visibleLessons.some((item) => String(item.id) === String(lesson.id))).map((lesson) => (
+                  <div key={lesson.id} className="mb-3 rounded-xl border border-[#E9E2D8] p-3">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <strong className="text-sm">{lesson.sarlavha || 'Dars'}</strong>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-[#6F6A62]">{lessonQuestionCount(lesson.id)} savol</span>
+                        <button
+                          type="button"
+                          className={SECONDARY}
+                          onClick={() => {
+                            setEditingId(null);
+                            setError('');
+                            setNotice('');
+                            setForm((current) => ({
+                              ...current,
+                              lessonId: lesson.id,
+                              matn: '',
+                              variants: ['', '', '', ''],
+                              togri: '',
+                              izoh: '',
+                              qiyinlik: 1,
+                              faol: true,
+                            }));
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }}
+                        >
+                          <Plus size={15} /> Qo‘shish
+                        </button>
+                      </div>
+                    </div>
+                    {questions.filter((question) => String(question.dars_id) === String(lesson.id)).map((question) => (
+                      <article key={question.id} className="mb-2 rounded-lg bg-[#FAF8F4] p-3">
+                        <p className="text-sm font-semibold">{question.matn}</p>
+                        <p className="mt-1 text-xs text-[#6F6A62]">{question.faol ? 'Faol' : 'Faol emas'} · Qiyinlik {question.qiyinlik}</p>
+                        <div className="mt-2 flex gap-2">
+                          <button type="button" disabled={busy} className={SECONDARY} onClick={() => startEdit(question)}><Pencil size={15} /> Tahrirlash</button>
+                          <button type="button" disabled={busy} className={SECONDARY} onClick={() => toggleQuestion(question)}>{question.faol ? 'Faolsizlashtirish' : 'Faollashtirish'}</button>
+                          <button type="button" disabled={busy} className="rounded-xl border border-red-200 px-3 text-sm text-red-700" onClick={() => deleteQuestion(question)}><Trash2 size={15} /></button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ))}
+              </section>
+            ))}
+            {gradeLevels.length === 0 && <p className="rounded-xl bg-white p-6 text-center text-sm text-[#6F6A62]">Darslar topilmadi.</p>}
+          </div>
+        )}
       </main>
     </div>
   );
@@ -1944,6 +2316,8 @@ export default function AdminPage() {
     page = <LessonEditor key={`${route.levelId}:${route.lessonId}`} levelId={route.levelId} lessonId={route.lessonId} navigate={navigate} onDirtyChange={changeDirty} />;
   }
   if (route.page === 'questions') page = <AdminQuestions navigate={navigate} />;
+  if (route.page === 'moderation') page = <AdminLegacyQuestions navigate={navigate} />;
+  if (route.page === 'levels') page = <AdminLevels navigate={navigate} />;
   if (route.page === 'home') page = <AdminHome navigate={navigate} />;
   if (!page) {
     page = (

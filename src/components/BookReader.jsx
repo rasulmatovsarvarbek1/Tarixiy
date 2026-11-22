@@ -1388,7 +1388,6 @@ function BookReaderInner({ level, lessons, onClose, onFinish, ...props }) {
   useEffect(() => {
     const timer = setInterval(() => {
       if (document.visibilityState !== 'visible') return;
-      if (Date.now() - lastReadingInteractionRef.current > 60000) return;
       pendingReadingSecondsRef.current += 1;
       if (pendingReadingSecondsRef.current >= 20
         && Date.now() >= retryReadingFlushAtRef.current) {
