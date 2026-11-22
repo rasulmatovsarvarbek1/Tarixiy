@@ -61,6 +61,7 @@ const GAME_QUESTIONS = [
 
 const GAME_IMAGE_NAMES = [
   'kirish',
+  'game-banner',
   'bg-arena',
   'knight1',
   'knight2',
@@ -205,6 +206,7 @@ function KnightDragonGame({ onBack, onRestart, sessionKey }) {
   const [secondsLeft, setSecondsLeft] = useState(15);
   const [phase, setPhase] = useState('intro');
   const [action, setAction] = useState('idle');
+  const [selectedAnswer, setSelectedAnswer] = useState(null);
   const [correctAnswers, setCorrectAnswers] = useState(0);
   const [incorrectAnswers, setIncorrectAnswers] = useState(0);
   const [result, setResult] = useState(null);
@@ -214,11 +216,39 @@ function KnightDragonGame({ onBack, onRestart, sessionKey }) {
   const phaseRef = useRef('playing');
   const phaseTimeoutRef = useRef(null);
   const loadingRunRef = useRef(0);
+  const swordAudioRef = useRef(null);
+  const swordStopTimeoutRef = useRef(null);
   const question = GAME_QUESTIONS[questionIndex];
 
   const changePhase = useCallback((nextPhase) => {
     phaseRef.current = nextPhase;
     setPhase(nextPhase);
+  }, []);
+
+  useEffect(() => {
+    swordAudioRef.current = new Audio('/game-sounds/sword-slash.mp3');
+    swordAudioRef.current.load();
+  }, []);
+
+  const playSwordSlash = useCallback(() => {
+    if (!swordAudioRef.current) {
+      swordAudioRef.current = new Audio('/game-sounds/sword-slash.mp3');
+    }
+
+    const swordAudio = swordAudioRef.current;
+    if (swordStopTimeoutRef.current) {
+      window.clearTimeout(swordStopTimeoutRef.current);
+    }
+
+    swordAudio.pause();
+    swordAudio.currentTime = 0;
+    swordAudio.play().catch(() => {});
+
+    swordStopTimeoutRef.current = window.setTimeout(() => {
+      swordAudio.pause();
+      swordAudio.currentTime = 0;
+      swordStopTimeoutRef.current = null;
+    }, 1500);
   }, []);
 
   useEffect(() => {
@@ -232,6 +262,11 @@ function KnightDragonGame({ onBack, onRestart, sessionKey }) {
   useEffect(() => () => {
     loadingRunRef.current += 1;
     if (phaseTimeoutRef.current) window.clearTimeout(phaseTimeoutRef.current);
+    if (swordStopTimeoutRef.current) window.clearTimeout(swordStopTimeoutRef.current);
+    if (swordAudioRef.current) {
+      swordAudioRef.current.pause();
+      swordAudioRef.current.currentTime = 0;
+    }
   }, []);
 
   const startGame = async () => {
@@ -251,6 +286,7 @@ function KnightDragonGame({ onBack, onRestart, sessionKey }) {
   const resolveAnswer = useCallback((answer, timedOut = false) => {
     if (phaseRef.current !== 'playing') return;
 
+    setSelectedAnswer(answer);
     changePhase('resolving');
     const correct = !timedOut && answer === question.answer;
     const nextCorrectAnswers = correctAnswers + (correct ? 1 : 0);
@@ -265,6 +301,7 @@ function KnightDragonGame({ onBack, onRestart, sessionKey }) {
     setKnightHealth(nextKnightHealth);
     setDragonHealth(nextDragonHealth);
     setAction(correct ? 'knight-attack' : 'dragon-attack');
+    if (correct) playSwordSlash();
 
     const advanceAfterAnimation = () => {
       if (finished) {
@@ -284,6 +321,7 @@ function KnightDragonGame({ onBack, onRestart, sessionKey }) {
       const nextAnswerPosition = (answerOptions.indexOf(question.answer) + 1) % nextQuestion.options.length;
       setAnswerOptions(shuffleOptions(nextQuestion.options, nextQuestion.answer, nextAnswerPosition));
       setQuestionIndex((index) => index + 1);
+      setSelectedAnswer(null);
       setSecondsLeft(15);
       setAction('idle');
       changePhase('playing');
@@ -297,6 +335,7 @@ function KnightDragonGame({ onBack, onRestart, sessionKey }) {
     dragonHealth,
     incorrectAnswers,
     knightHealth,
+    playSwordSlash,
     question.answer,
     questionIndex,
   ]);
@@ -451,20 +490,33 @@ function KnightDragonGame({ onBack, onRestart, sessionKey }) {
           Tarix jangi
         </div>
         <h1 className="shrink-0 text-sm font-extrabold leading-snug text-[#0F172A]">{question.question}</h1>
-        <div className="mt-2 grid min-h-0 flex-1 grid-rows-3 gap-1.5">
+        <div className="mt-2 flex min-h-0 flex-1 flex-col gap-2">
           {answerOptions.map((option, index) => (
-            <button
-              key={option}
-              type="button"
-              onClick={() => resolveAnswer(option)}
-              disabled={phase !== 'playing'}
-              className="flex min-h-0 w-full items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-left text-xs font-semibold text-slate-700 transition-colors hover:border-emerald-300 hover:bg-emerald-50 active:scale-[0.99] disabled:cursor-wait disabled:opacity-70"
-            >
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white text-[10px] font-extrabold text-slate-500 shadow-sm">
-                {String.fromCharCode(65 + index)}
-              </span>
-              <span>{option}</span>
-            </button>
+            (() => {
+              const isSelected = selectedAnswer === option;
+              const isCorrect = phase === 'resolving' && option === question.answer;
+              const isIncorrect = isSelected && option !== question.answer;
+              const optionStateClass = isCorrect
+                ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
+                : isIncorrect
+                  ? 'border-rose-300 bg-rose-50 text-rose-700'
+                  : 'border-slate-200 bg-slate-50 text-slate-700';
+
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => resolveAnswer(option)}
+                  disabled={phase !== 'playing'}
+                  className={`flex h-[56px] w-full shrink-0 items-center gap-3 rounded-xl border px-3 text-left text-[15px] font-semibold transition-colors active:scale-[0.99] disabled:cursor-wait ${optionStateClass}`}
+                >
+                  <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-sm font-extrabold shadow-sm ${isCorrect ? 'text-emerald-700' : isIncorrect ? 'text-rose-700' : 'text-sky-600'}`}>
+                    {String.fromCharCode(65 + index)}
+                  </span>
+                  <span className="min-w-0 break-words">{option}</span>
+                </button>
+              );
+            })()
           ))}
         </div>
       </section>
@@ -527,6 +579,10 @@ export default function ResourcesPage({ onGamesOpenChange }) {
   const [showGames, setShowGames] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [gameSession, setGameSession] = useState(0);
+
+  useEffect(() => {
+    preloadGameImages();
+  }, []);
 
   useEffect(() => {
     onGamesOpenChange?.(showGames || isPlaying);
