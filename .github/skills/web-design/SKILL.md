@@ -88,6 +88,7 @@ Ranglar uchun mavjud Tailwind yoki aniq hex qiymatlaridan foydalanilsin. Tasodif
 - Bosish va hoverda kichik `scale`, fon yoki soya o'zgarishi bo'lsin.
 - `disabled` holatida opacity pasaytirilsin va kursor `not-allowed` yoki `wait` bo'lsin.
 - Tugma ichida faqat bir asosiy amaliyot bo'lsin.
+- Bosh sahifadagi to'rtta asosiy tugmada faqat tugma nomi ko'rsatiladi; qo'shimcha izoh yoki ikkinchi qator matni faqat foydalanuvchi so'rasa qo'shiladi.
 
 ## Ikonkalar
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useSyncExternalStore } from 'react';
+import React, { useCallback, useState, useEffect, useRef, useSyncExternalStore } from 'react';
 import RegisterWizard from './components/auth/RegisterWizard';
 import HomePage from './pages/HomePage';
 import RoadmapPage from './pages/RoadmapPage';
@@ -113,6 +113,9 @@ function getInitialAppTheme() {
 
 export default function App() {
   const [splash, setSplash] = useState(true);
+  const isAdminRoute = window.location.pathname.startsWith('/admin');
+  const [entryReady, setEntryReady] = useState(isAdminRoute);
+  const handleEntryReady = useCallback(() => setEntryReady(true), []);
 
   useEffect(() => {
     void preloadAdminDataForSession();
@@ -120,15 +123,15 @@ export default function App() {
 
   return (
     <>
-      {splash && <SplashScreen onDone={() => setSplash(false)} />}
+      {splash && <SplashScreen canFinish={entryReady} onDone={() => setSplash(false)} />}
       <LanguageProvider>
-        {window.location.pathname.startsWith('/admin') ? <AdminPage /> : <AppEntry />}
+        {isAdminRoute ? <AdminPage /> : <AppEntry onReady={handleEntryReady} />}
       </LanguageProvider>
     </>
   );
 }
 
-function AppEntry() {
+function AppEntry({ onReady }) {
   const [entryState, setEntryState] = useState('checking');
   const [entryMessage, setEntryMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -152,18 +155,23 @@ function AppEntry() {
             if (active) {
               setUserData(userDataFromProfile(profile, data.session.user));
               setEntryState('app');
+              onReady();
             }
             return;
           }
         }
 
         const onboardingSeen = window.localStorage.getItem(ONBOARDING_SEEN_KEY) === '1';
-        if (active) setEntryState(onboardingSeen ? 'register' : 'onboarding');
+        if (active) {
+          setEntryState(onboardingSeen ? 'register' : 'onboarding');
+          onReady();
+        }
       } catch (error) {
         console.error('Kirish holatini tekshirib bo‘lmadi:', error);
         if (!active) return;
         setEntryMessage('Sessiyani tekshirib bo‘lmadi. Qayta kirib ko‘ring.');
         setEntryState('register');
+        onReady();
       }
     };
 
@@ -171,7 +179,7 @@ function AppEntry() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [onReady]);
 
   useEffect(() => {
     if (!supabase) return undefined;

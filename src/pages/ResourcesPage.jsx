@@ -232,8 +232,34 @@ function ArenaEffects({ action }) {
       <>
         <div className="arena-flash arena-flash-knight" />
         <svg className="fire-effect" viewBox="0 0 300 120" aria-hidden="true">
-          <path d="M300 60C235 4 164 5 88 34c34 3 48 10 66 23-38-11-89-8-142 3 53 11 104 14 142 3-18 13-32 20-66 23 76 29 147 30 212-26Z" />
-          <path className="fire-core" d="M300 60c-66-26-123-22-191 0 68 22 125 26 191 0Z" />
+          <defs>
+            <linearGradient id="dragon-fire-shell" x1="100%" y1="50%" x2="0%" y2="50%">
+              <stop offset="0%" stopColor="#FFF3A6" />
+              <stop offset="28%" stopColor="#FDBA3B" />
+              <stop offset="68%" stopColor="#F97316" />
+              <stop offset="100%" stopColor="#DC2626" />
+            </linearGradient>
+            <linearGradient id="dragon-fire-core" x1="100%" y1="50%" x2="0%" y2="50%">
+              <stop offset="0%" stopColor="#FFFDE7" />
+              <stop offset="42%" stopColor="#FDE68A" />
+              <stop offset="100%" stopColor="#F97316" />
+            </linearGradient>
+          </defs>
+          <path
+            className="fire-shell"
+            d="M298 57C276 49 267 34 244 38c-17-16-37-23-59-9-18-19-43-15-62 5-23-13-48-2-63 15C37 47 15 53 2 60c20 8 40 14 61 9 16 22 39 30 64 13 19 18 45 12 64-7 25 7 47-2 64-9 18 5 31-2 43-6Z"
+          />
+          <path
+            className="fire-core"
+            d="M297 59c-28-7-48-16-71-9-21-13-44-13-63 0-23-8-51-3-74 10-24 2-43 1-64 1 22 7 41 9 64 5 21 12 47 16 72 3 24 8 45 1 66-4 27 5 49-1 70-6Z"
+          />
+          <g className="fire-sparks">
+            <circle cx="45" cy="38" r="3" />
+            <circle cx="82" cy="91" r="2.5" />
+            <circle cx="132" cy="24" r="2" />
+            <circle cx="176" cy="96" r="2.5" />
+            <circle cx="222" cy="35" r="2" />
+          </g>
         </svg>
       </>
     );
@@ -300,28 +326,43 @@ function KnightDragonGame({ onBack, onRestart, sessionKey }) {
     }
 
     swordAudio.pause();
-    swordAudio.currentTime = 0;
+    swordAudio.currentTime = 0.45;
     swordAudio.volume = 1;
-    swordAudio.play().catch(() => {});
+    swordAudio.play().catch((error) => {
+      console.error('Qilich ovozini qo‘yib bo‘lmadi:', error);
+    });
 
     swordStopTimeoutRef.current = window.setTimeout(() => {
       swordAudio.pause();
       swordAudio.currentTime = 0;
       swordStopTimeoutRef.current = null;
-    }, 1500);
+    }, 900);
   }, []);
 
-  const playDragonRoar = useCallback(async () => {
+  const getDragonAudioContext = useCallback(() => {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContextClass) return;
+    if (!AudioContextClass) return null;
 
     if (!dragonAudioContextRef.current) {
       dragonAudioContextRef.current = new AudioContextClass();
     }
 
-    const context = dragonAudioContextRef.current;
+    return dragonAudioContextRef.current;
+  }, []);
+
+  const playDragonRoar = useCallback(async () => {
+    const context = getDragonAudioContext();
+    if (!context) {
+      console.error('Ajdarho ovozi uchun Web Audio API mavjud emas.');
+      return;
+    }
     if (context.state === 'suspended') {
-      await context.resume();
+      try {
+        await context.resume();
+      } catch (error) {
+        console.error('Ajdarho ovozini yoqib bo‘lmadi:', error);
+        return;
+      }
     }
 
     const duration = 2;
@@ -387,7 +428,7 @@ function KnightDragonGame({ onBack, onRestart, sessionKey }) {
     mainOscillator.stop(now + duration);
     subOscillator.stop(now + duration);
     lfo.stop(now + duration);
-  }, []);
+  }, [getDragonAudioContext]);
 
   useEffect(() => {
     if (phase !== 'playing') return undefined;
@@ -415,6 +456,13 @@ function KnightDragonGame({ onBack, onRestart, sessionKey }) {
   }, []);
 
   const startGame = async () => {
+    const audioContext = getDragonAudioContext();
+    if (audioContext?.state === 'suspended') {
+      audioContext.resume().catch((error) => {
+        console.error('O‘yin ovozini yoqib bo‘lmadi:', error);
+      });
+    }
+
     const loadingRun = loadingRunRef.current + 1;
     loadingRunRef.current = loadingRun;
     changePhase('loading');
@@ -426,11 +474,15 @@ function KnightDragonGame({ onBack, onRestart, sessionKey }) {
     setSecondsLeft(15);
     setAction('idle');
     changePhase('playing');
-    if (hornAudioRef.current) {
-      hornAudioRef.current.pause();
-      hornAudioRef.current.currentTime = 0;
-      hornAudioRef.current.volume = 1;
-      hornAudioRef.current.play().catch(() => {});
+
+    const hornAudio = hornAudioRef.current;
+    if (hornAudio) {
+      hornAudio.pause();
+      hornAudio.currentTime = 0;
+      hornAudio.volume = 1;
+      hornAudio.play().catch((error) => {
+        console.error('Jang karnayi ovozini qo‘yib bo‘lmadi:', error);
+      });
     }
   };
 
@@ -604,9 +656,19 @@ function KnightDragonGame({ onBack, onRestart, sessionKey }) {
           paddingBottom: 'max(16px, env(safe-area-inset-bottom))',
         }}
       >
-        <h1 className="shrink-0 pt-3 text-center text-3xl font-black tracking-tight text-[#0F172A]">
-          Ritser va Ajdar
-        </h1>
+        <div className="relative flex w-full shrink-0 items-center justify-center pt-3">
+          <button
+            type="button"
+            onClick={onBack}
+            aria-label="Ortga qaytish"
+            className="absolute left-0 flex h-10 w-10 items-center justify-center rounded-xl border border-[#E2E8F0] bg-white text-slate-600 transition-colors hover:bg-slate-100 active:scale-[0.98]"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <h1 className="text-center text-3xl font-black tracking-tight text-[#0F172A]">
+            Ritser va Ajdar
+          </h1>
+        </div>
         <GameImage
           name="kirish"
           alt="Ritser va Ajdar"
@@ -646,23 +708,30 @@ function KnightDragonGame({ onBack, onRestart, sessionKey }) {
       <style>{`
         @keyframes game-knight-strike { 0%, 100% { transform: translateX(0) scale(1); } 38% { transform: translateX(20px) scale(1.06); } }
         @keyframes game-dragon-strike { 0%, 100% { transform: translateX(0) scale(1); } 38% { transform: translateX(-18px) scale(1.05); } }
-        @keyframes game-hurt { 0%, 100% { transform: translateX(0); filter: none; } 20%, 60% { transform: translateX(-7px); filter: brightness(1.8) saturate(1.5); } 40%, 80% { transform: translateX(7px); filter: brightness(1.8) saturate(1.5); } }
+        @keyframes game-hurt { 0%, 100% { transform: translateX(0); filter: none; } 20%, 60% { transform: translateX(-7px); filter: brightness(1.15) sepia(1) saturate(5) hue-rotate(320deg) drop-shadow(0 0 12px rgba(239, 68, 68, .75)); } 40%, 80% { transform: translateX(7px); filter: brightness(1.15) sepia(1) saturate(5) hue-rotate(320deg) drop-shadow(0 0 12px rgba(239, 68, 68, .75)); } }
         @keyframes game-dragon-hurt { 0%, 100% { transform: translateX(0); filter: none; } 20%, 60% { transform: translateX(-7px); filter: brightness(1.8) saturate(1.5); } 40%, 80% { transform: translateX(7px); filter: brightness(1.8) saturate(1.5); } }
         @keyframes game-lightning { 0% { opacity: 0; transform: scale(.4); } 20% { opacity: 1; transform: scale(1.15); } 40% { opacity: .8; transform: scale(.9); } 100% { opacity: 0; transform: scale(1); } }
-        @keyframes game-fire { 0% { opacity: 0; transform: scaleX(.1); } 25% { opacity: 1; transform: scaleX(1.05); } 100% { opacity: 0; transform: scaleX(1); } }
+        @keyframes game-fire { 0% { opacity: 0; transform: scale(.08, .72); } 12% { opacity: 1; } 48% { transform: scale(1.05, 1.08); } 100% { opacity: 0; transform: scale(1, .86); } }
         @keyframes game-flash { 0%, 100% { opacity: 0; } 25%, 55% { opacity: .55; } }
+        @keyframes game-fire-spark { 0%, 100% { opacity: 0; transform: scale(.2); } 30% { opacity: 1; transform: scale(1.35); } 70% { opacity: .8; transform: scale(.8); } }
         .knight-attack { animation: game-knight-strike .65s ease-out; }
         .dragon-attack { animation: game-dragon-strike .65s ease-out; }
         .knight-hurt { animation: game-hurt .55s ease-out; }
         .dragon-hurt { animation: game-dragon-hurt .55s ease-out; }
         .lightning-effect { position: absolute; z-index: 20; left: 52%; top: 24%; width: 23%; height: 43%; fill: #fff6a5; filter: drop-shadow(0 0 10px #fef08a) drop-shadow(0 0 22px #38bdf8); animation: game-lightning .7s ease-out both; }
-        .fire-effect { position: absolute; z-index: 20; left: 17%; top: 43%; width: 42%; height: 26%; overflow: visible; fill: #f97316; filter: drop-shadow(0 0 10px #fb923c) drop-shadow(0 0 20px #ef4444); transform-origin: right center; animation: game-fire .75s ease-out both; }
-        .fire-core { fill: #fde68a; }
+        .fire-effect { position: absolute; z-index: 20; left: 24%; top: 68%; width: 32%; height: 20%; overflow: visible; transform-origin: right center; animation: game-fire .75s ease-out both; }
+        .fire-shell { fill: url(#dragon-fire-shell); filter: drop-shadow(0 0 7px rgba(249, 115, 22, .95)) drop-shadow(0 0 15px rgba(220, 38, 38, .72)); }
+        .fire-core { fill: url(#dragon-fire-core); filter: drop-shadow(0 0 5px rgba(255, 237, 130, .95)); }
+        .fire-sparks circle { fill: #FFF3A6; filter: drop-shadow(0 0 4px #FBBF24); transform-box: fill-box; transform-origin: center; animation: game-fire-spark .55s ease-out both; }
+        .fire-sparks circle:nth-child(2) { animation-delay: 50ms; }
+        .fire-sparks circle:nth-child(3) { animation-delay: 90ms; }
+        .fire-sparks circle:nth-child(4) { animation-delay: 30ms; }
+        .fire-sparks circle:nth-child(5) { animation-delay: 70ms; }
         .arena-flash { position: absolute; z-index: 15; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, rgba(248, 60, 35, .52), transparent 68%); animation: game-flash .5s ease-out both; }
         .arena-flash-dragon { clip-path: ellipse(38% 55% at 76% 57%); }
-        .arena-flash-knight { clip-path: ellipse(38% 55% at 25% 57%); }
+        .arena-flash-knight { clip-path: ellipse(14% 20% at 30% 78%); background: radial-gradient(ellipse at 30% 78%, rgba(248, 60, 35, .8), transparent 24%); }
         @media (prefers-reduced-motion: reduce) {
-          .knight-attack, .dragon-attack, .knight-hurt, .dragon-hurt, .lightning-effect, .fire-effect, .arena-flash { animation-duration: .01ms !important; }
+          .knight-attack, .dragon-attack, .knight-hurt, .dragon-hurt, .lightning-effect, .fire-effect, .fire-sparks circle, .arena-flash { animation-duration: .01ms !important; }
         }
       `}</style>
 

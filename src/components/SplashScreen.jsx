@@ -70,24 +70,27 @@ const CSS = `
 }
 `;
 
-export default function SplashScreen({ onDone, holdMs = 2500, exitMs = 550 }) {
-  const [leaving, setLeaving] = useState(false);
+export default function SplashScreen({ onDone, canFinish = true, holdMs = 2500, exitMs = 550 }) {
+  const [holdElapsed, setHoldElapsed] = useState(false);
+  const leaving = holdElapsed && canFinish;
   const doneRef = useRef(onDone);
   doneRef.current = onDone;
 
   useEffect(() => {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const hold = reduce ? 900 : holdMs;
-    const t1 = setTimeout(() => setLeaving(true), hold);
-    const t2 = setTimeout(() => {
+    const timer = setTimeout(() => setHoldElapsed(true), hold);
+    return () => clearTimeout(timer);
+  }, [holdMs]);
+
+  useEffect(() => {
+    if (!leaving) return undefined;
+    const timer = setTimeout(() => {
       document.documentElement.style.removeProperty("background");
       doneRef.current?.();
-    }, hold + exitMs);
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-    };
-  }, [holdMs, exitMs]);
+    }, exitMs);
+    return () => clearTimeout(timer);
+  }, [leaving, exitMs]);
 
   return (
     <div
