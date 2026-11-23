@@ -512,8 +512,8 @@ function KnightDragonGame({ onBack, onRestart, sessionKey }) {
         ? 'drogon3'
         : 'drogon1';
 
-  if (result && phase === 'finished') {
-    return createPortal(
+  const resultModal = result && phase === 'finished'
+    ? createPortal(
       <div
         style={{
           position: 'fixed',
@@ -526,7 +526,8 @@ function KnightDragonGame({ onBack, onRestart, sessionKey }) {
           justifyContent: 'center',
           padding: '12px',
           overflow: 'hidden',
-          background: '#F8FAFC',
+          background: 'rgba(15, 23, 42, 0.68)',
+          backdropFilter: 'blur(3px)',
           boxSizing: 'border-box',
         }}
       >
@@ -591,8 +592,8 @@ function KnightDragonGame({ onBack, onRestart, sessionKey }) {
         </div>
       </div>,
       document.body,
-    );
-  }
+    )
+    : null;
 
   if (phase === 'intro') {
     return (
@@ -757,6 +758,7 @@ function KnightDragonGame({ onBack, onRestart, sessionKey }) {
         </div>
       </section>
 
+      {resultModal}
     </div>
   );
 }
