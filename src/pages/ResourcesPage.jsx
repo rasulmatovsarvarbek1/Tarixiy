@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ArrowLeft, RotateCcw, Swords, Timer } from 'lucide-react';
 import { useLanguage } from '../lib/language';
 
@@ -57,6 +58,56 @@ const GAME_QUESTIONS = [
     options: ['Xeops piramidasi', 'Koloss Rodoslik', 'Artemida ibodatxonasi'],
     answer: 'Xeops piramidasi',
   },
+  {
+    question: 'Amir Temur qaysi shaharda tug‘ilgan?',
+    options: ['Shahrisabz', 'Samarqand', 'Buxoro'],
+    answer: 'Shahrisabz',
+  },
+  {
+    question: 'Amir Temur davlati poytaxti qaysi shahar bo‘lgan?',
+    options: ['Samarqand', 'Xiva', 'Toshkent'],
+    answer: 'Samarqand',
+  },
+  {
+    question: 'Temuriylar sulolasining mashhur hukmdori Mirzo Ulug‘bek qaysi fan bilan shug‘ullangan?',
+    options: ['Astronomiya', 'Kimyo', 'Fizika'],
+    answer: 'Astronomiya',
+  },
+  {
+    question: 'Zahiriddin Muhammad Bobur Hindistonda qaysi sulolaga asos solgan?',
+    options: ['Boburlar sulolasi', 'Guptalar sulolasi', 'Mavriylar sulolasi'],
+    answer: 'Boburlar sulolasi',
+  },
+  {
+    question: 'To‘maris kim bo‘lgan?',
+    options: ['Massagetlar malikasi', 'Qadimgi Misr malika', 'Rim imperatori'],
+    answer: 'Massagetlar malikasi',
+  },
+  {
+    question: 'Spartak qaysi davlatda qullar qo‘zg‘olonini boshqargan?',
+    options: ['Qadimgi Rim', 'Qadimgi Yunoniston', 'Fors imperiyasi'],
+    answer: 'Qadimgi Rim',
+  },
+  {
+    question: 'Qadimgi Yunonistonning mashhur faylasufi Aleksandr Makedonskiyga ustozlik qilgan?',
+    options: ['Aristotel', 'Pifagor', 'Gippokrat'],
+    answer: 'Aristotel',
+  },
+  {
+    question: 'Jaloliddin Manguberdi qaysi sulolaning so‘nggi sultonlaridan biri bo‘lgan?',
+    options: ['Xorazmshohlar', 'Somoniylar', 'Qoraxoniylar'],
+    answer: 'Xorazmshohlar',
+  },
+  {
+    question: 'Samarqanddagi Ulug‘bek rasadxonasining asosiy yo‘nalishi nima bo‘lgan?',
+    options: ['Osmon jismlarini kuzatish', 'Suv kashf qilish', 'O‘simlik yetishtirish'],
+    answer: 'Osmon jismlarini kuzatish',
+  },
+  {
+    question: 'Buyuk Ipak yo‘li asosan nima uchun xizmat qilgan?',
+    options: ['Savdo va madaniy aloqa', 'Faqat harbiy yurish', 'Faollarni joylashtirish'],
+    answer: 'Savdo va madaniy aloqa',
+  },
 ];
 
 const GAME_IMAGE_NAMES = [
@@ -93,16 +144,15 @@ function preloadGameImages() {
   return gameImagesPromise;
 }
 
-function shuffleOptions(options, answer, answerPosition = Math.floor(Math.random() * options.length)) {
-  const distractors = options.filter((option) => option !== answer);
+function shuffleOptions(options) {
+  const shuffled = [...options];
 
-  for (let index = distractors.length - 1; index > 0; index -= 1) {
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
     const swapIndex = Math.floor(Math.random() * (index + 1));
-    [distractors[index], distractors[swapIndex]] = [distractors[swapIndex], distractors[index]];
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
   }
 
-  distractors.splice(answerPosition, 0, answer);
-  return distractors;
+  return shuffled;
 }
 
 function GameImage({ name, alt, className = '', style = {} }) {
@@ -211,13 +261,15 @@ function KnightDragonGame({ onBack, onRestart, sessionKey }) {
   const [incorrectAnswers, setIncorrectAnswers] = useState(0);
   const [result, setResult] = useState(null);
   const [answerOptions, setAnswerOptions] = useState(() => (
-    shuffleOptions(GAME_QUESTIONS[0].options, GAME_QUESTIONS[0].answer)
+    shuffleOptions(GAME_QUESTIONS[0].options)
   ));
   const phaseRef = useRef('playing');
   const phaseTimeoutRef = useRef(null);
   const loadingRunRef = useRef(0);
   const swordAudioRef = useRef(null);
   const swordStopTimeoutRef = useRef(null);
+  const hornAudioRef = useRef(null);
+  const dragonAudioContextRef = useRef(null);
   const question = GAME_QUESTIONS[questionIndex];
 
   const changePhase = useCallback((nextPhase) => {
@@ -227,7 +279,14 @@ function KnightDragonGame({ onBack, onRestart, sessionKey }) {
 
   useEffect(() => {
     swordAudioRef.current = new Audio('/game-sounds/sword-slash.mp3');
+    swordAudioRef.current.preload = 'auto';
+    swordAudioRef.current.volume = 1;
     swordAudioRef.current.load();
+
+    hornAudioRef.current = new Audio('/game-sounds/horn.mp3');
+    hornAudioRef.current.preload = 'auto';
+    hornAudioRef.current.volume = 1;
+    hornAudioRef.current.load();
   }, []);
 
   const playSwordSlash = useCallback(() => {
@@ -242,6 +301,7 @@ function KnightDragonGame({ onBack, onRestart, sessionKey }) {
 
     swordAudio.pause();
     swordAudio.currentTime = 0;
+    swordAudio.volume = 1;
     swordAudio.play().catch(() => {});
 
     swordStopTimeoutRef.current = window.setTimeout(() => {
@@ -249,6 +309,84 @@ function KnightDragonGame({ onBack, onRestart, sessionKey }) {
       swordAudio.currentTime = 0;
       swordStopTimeoutRef.current = null;
     }, 1500);
+  }, []);
+
+  const playDragonRoar = useCallback(async () => {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
+
+    if (!dragonAudioContextRef.current) {
+      dragonAudioContextRef.current = new AudioContextClass();
+    }
+
+    const context = dragonAudioContextRef.current;
+    if (context.state === 'suspended') {
+      await context.resume();
+    }
+
+    const duration = 2;
+    const now = context.currentTime;
+    const mainOscillator = context.createOscillator();
+    const subOscillator = context.createOscillator();
+    const lfo = context.createOscillator();
+    const fmGain = context.createGain();
+    const tremoloGain = context.createGain();
+    const mainGain = context.createGain();
+    const filter = context.createBiquadFilter();
+    const shaper = context.createWaveShaper();
+
+    mainOscillator.type = 'sawtooth';
+    mainOscillator.frequency.setValueAtTime(130, now);
+    mainOscillator.frequency.exponentialRampToValueAtTime(155, now + 1);
+    mainOscillator.frequency.exponentialRampToValueAtTime(55, now + duration);
+
+    subOscillator.type = 'square';
+    subOscillator.frequency.setValueAtTime(65, now);
+    subOscillator.frequency.exponentialRampToValueAtTime(28, now + duration);
+
+    lfo.type = 'sine';
+    lfo.frequency.setValueAtTime(31, now);
+    lfo.frequency.linearRampToValueAtTime(28, now + 0.8);
+    lfo.frequency.linearRampToValueAtTime(35, now + duration);
+    fmGain.gain.setValueAtTime(40, now);
+    tremoloGain.gain.setValueAtTime(0.09, now);
+
+    lfo.connect(fmGain);
+    fmGain.connect(mainOscillator.frequency);
+    fmGain.connect(subOscillator.frequency);
+    lfo.connect(tremoloGain);
+    tremoloGain.connect(mainGain.gain);
+
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(650, now);
+    filter.frequency.exponentialRampToValueAtTime(220, now + duration);
+    filter.Q.value = 4;
+
+    const curve = new Float32Array(1024);
+    for (let index = 0; index < curve.length; index += 1) {
+      const x = (index * 2) / (curve.length - 1) - 1;
+      curve[index] = Math.tanh(2.8 * x);
+    }
+    shaper.curve = curve;
+    shaper.oversample = '4x';
+
+    mainGain.gain.setValueAtTime(0.0001, now);
+    mainGain.gain.exponentialRampToValueAtTime(0.8, now + 0.08);
+    mainGain.gain.setValueAtTime(0.8, now + 1.4);
+    mainGain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+    mainOscillator.connect(filter);
+    subOscillator.connect(filter);
+    filter.connect(shaper);
+    shaper.connect(mainGain);
+    mainGain.connect(context.destination);
+
+    mainOscillator.start(now);
+    subOscillator.start(now);
+    lfo.start(now);
+    mainOscillator.stop(now + duration);
+    subOscillator.stop(now + duration);
+    lfo.stop(now + duration);
   }, []);
 
   useEffect(() => {
@@ -267,6 +405,13 @@ function KnightDragonGame({ onBack, onRestart, sessionKey }) {
       swordAudioRef.current.pause();
       swordAudioRef.current.currentTime = 0;
     }
+    if (hornAudioRef.current) {
+      hornAudioRef.current.pause();
+      hornAudioRef.current.currentTime = 0;
+    }
+    if (dragonAudioContextRef.current) {
+      dragonAudioContextRef.current.close().catch(() => {});
+    }
   }, []);
 
   const startGame = async () => {
@@ -281,6 +426,12 @@ function KnightDragonGame({ onBack, onRestart, sessionKey }) {
     setSecondsLeft(15);
     setAction('idle');
     changePhase('playing');
+    if (hornAudioRef.current) {
+      hornAudioRef.current.pause();
+      hornAudioRef.current.currentTime = 0;
+      hornAudioRef.current.volume = 1;
+      hornAudioRef.current.play().catch(() => {});
+    }
   };
 
   const resolveAnswer = useCallback((answer, timedOut = false) => {
@@ -301,7 +452,7 @@ function KnightDragonGame({ onBack, onRestart, sessionKey }) {
     setKnightHealth(nextKnightHealth);
     setDragonHealth(nextDragonHealth);
     setAction(correct ? 'knight-attack' : 'dragon-attack');
-    if (correct) playSwordSlash();
+    if (!correct) playDragonRoar();
 
     const advanceAfterAnimation = () => {
       if (finished) {
@@ -318,8 +469,7 @@ function KnightDragonGame({ onBack, onRestart, sessionKey }) {
       }
 
       const nextQuestion = GAME_QUESTIONS[questionIndex + 1];
-      const nextAnswerPosition = (answerOptions.indexOf(question.answer) + 1) % nextQuestion.options.length;
-      setAnswerOptions(shuffleOptions(nextQuestion.options, nextQuestion.answer, nextAnswerPosition));
+      setAnswerOptions(shuffleOptions(nextQuestion.options));
       setQuestionIndex((index) => index + 1);
       setSelectedAnswer(null);
       setSecondsLeft(15);
@@ -336,6 +486,7 @@ function KnightDragonGame({ onBack, onRestart, sessionKey }) {
     incorrectAnswers,
     knightHealth,
     playSwordSlash,
+    playDragonRoar,
     question.answer,
     questionIndex,
   ]);
@@ -360,6 +511,88 @@ function KnightDragonGame({ onBack, onRestart, sessionKey }) {
       : action === 'knight-attack'
         ? 'drogon3'
         : 'drogon1';
+
+  if (result && phase === 'finished') {
+    return createPortal(
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          width: '100vw',
+          height: '100dvh',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '12px',
+          overflow: 'hidden',
+          background: '#F8FAFC',
+          boxSizing: 'border-box',
+        }}
+      >
+        <div
+          style={{
+            width: 'min(calc(100vw - 24px), 384px)',
+            maxHeight: 'calc(100dvh - 24px)',
+            overflowY: 'auto',
+            borderRadius: '24px',
+            border: '1px solid rgba(255, 255, 255, 0.8)',
+            background: '#FFFFFF',
+            textAlign: 'center',
+            boxShadow: '0 24px 80px rgba(15, 23, 42, 0.38)',
+            margin: 0,
+            flex: '0 1 auto',
+            boxSizing: 'border-box',
+          }}
+        >
+          <div className="bg-gradient-to-br from-slate-900 to-slate-700 px-4 pb-3 pt-3 text-white">
+            <GameImage
+              name={result.winner === 'knight' ? 'knight4' : 'drogon4'}
+              alt={result.winner === 'knight' ? 'G‘olib ritser' : 'G‘olib ajdar'}
+              className="mx-auto h-20 w-24 object-contain sm:h-28 sm:w-32"
+            />
+            <p className="mt-0.5 text-[10px] font-bold uppercase tracking-[.18em] text-amber-300">Jang yakunlandi</p>
+            <h2 className="mt-1 text-xl font-black leading-tight">
+              {result.winner === 'knight' ? 'Ritser g‘olib!' : 'Ajdar g‘olib!'}
+            </h2>
+          </div>
+          <div className="grid grid-cols-3 gap-2 px-3 py-3">
+            <div className="rounded-xl bg-emerald-50 px-1 py-2">
+              <div className="text-lg font-black text-emerald-700">{result.correct}</div>
+              <div className="text-[10px] font-semibold text-slate-600">To‘g‘ri</div>
+            </div>
+            <div className="rounded-xl bg-rose-50 px-1 py-2">
+              <div className="text-lg font-black text-rose-700">{result.incorrect}</div>
+              <div className="text-[10px] font-semibold text-slate-600">Noto‘g‘ri</div>
+            </div>
+            <div className="rounded-xl bg-slate-100 px-1 py-2">
+              <div className="text-lg font-black text-slate-700">{result.unanswered}</div>
+              <div className="text-[10px] font-semibold text-slate-600">Javobsiz</div>
+            </div>
+          </div>
+          <p className="pb-2 text-[11px] font-medium text-slate-500">Jami {GAME_QUESTIONS.length} ta savol</p>
+          <div className="flex gap-2 px-3 pb-3">
+            <button
+              type="button"
+              onClick={onRestart}
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#1F7A45] px-3 py-3 text-sm font-bold text-white transition-colors hover:bg-[#176238] active:scale-[0.98]"
+            >
+              <RotateCcw size={16} />
+              Qayta o‘ynash
+            </button>
+            <button
+              type="button"
+              onClick={onBack}
+              className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 active:scale-[0.98]"
+            >
+              Ortga qaytish
+            </button>
+          </div>
+        </div>
+      </div>,
+      document.body,
+    );
+  }
 
   if (phase === 'intro') {
     return (
@@ -506,7 +739,10 @@ function KnightDragonGame({ onBack, onRestart, sessionKey }) {
                 <button
                   key={option}
                   type="button"
-                  onClick={() => resolveAnswer(option)}
+                  onClick={() => {
+                    if (option === question.answer) playSwordSlash();
+                    resolveAnswer(option);
+                  }}
                   disabled={phase !== 'playing'}
                   className={`flex h-[56px] w-full shrink-0 items-center gap-3 rounded-xl border px-3 text-left text-[15px] font-semibold transition-colors active:scale-[0.99] disabled:cursor-wait ${optionStateClass}`}
                 >
@@ -521,55 +757,6 @@ function KnightDragonGame({ onBack, onRestart, sessionKey }) {
         </div>
       </section>
 
-      {result && phase === 'finished' && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/70 px-4 py-6 backdrop-blur-sm">
-          <div className="w-full max-w-sm overflow-hidden rounded-3xl border border-white/70 bg-white text-center shadow-2xl">
-            <div className="bg-gradient-to-br from-slate-900 to-slate-700 px-5 pb-4 pt-5 text-white">
-              <GameImage
-                name={result.winner === 'knight' ? 'knight4' : 'drogon4'}
-                alt={result.winner === 'knight' ? 'G‘olib ritser' : 'G‘olib ajdar'}
-                className="mx-auto h-36 w-40 object-contain"
-              />
-              <p className="mt-1 text-xs font-bold uppercase tracking-[.18em] text-amber-300">Jang yakunlandi</p>
-              <h2 className="mt-1 text-2xl font-black">
-                {result.winner === 'knight' ? 'Ritser g‘olib!' : 'Ajdar g‘olib!'}
-              </h2>
-            </div>
-            <div className="grid grid-cols-3 gap-2 px-4 py-5">
-              <div className="rounded-xl bg-emerald-50 p-2">
-                <div className="text-xl font-black text-emerald-700">{result.correct}</div>
-                <div className="text-[11px] font-semibold text-slate-600">To‘g‘ri</div>
-              </div>
-              <div className="rounded-xl bg-rose-50 p-2">
-                <div className="text-xl font-black text-rose-700">{result.incorrect}</div>
-                <div className="text-[11px] font-semibold text-slate-600">Noto‘g‘ri</div>
-              </div>
-              <div className="rounded-xl bg-slate-100 p-2">
-                <div className="text-xl font-black text-slate-700">{result.unanswered}</div>
-                <div className="text-[11px] font-semibold text-slate-600">Javobsiz</div>
-              </div>
-            </div>
-            <p className="pb-4 text-xs font-medium text-slate-500">Jami {GAME_QUESTIONS.length} ta savol</p>
-            <div className="flex gap-2 px-4 pb-4">
-              <button
-                type="button"
-                onClick={onRestart}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#1F7A45] px-3 py-3 text-sm font-bold text-white transition-colors hover:bg-[#176238] active:scale-[0.98]"
-              >
-                <RotateCcw size={16} />
-                Qayta o‘ynash
-              </button>
-              <button
-                type="button"
-                onClick={onBack}
-                className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 active:scale-[0.98]"
-              >
-                Ortga qaytish
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

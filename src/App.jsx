@@ -371,7 +371,20 @@ function AppEntry() {
   };
 
   if (entryState === 'checking') {
-    return <main className="min-h-dvh bg-white" aria-busy="true" />;
+    return (
+      <main
+        className="flex min-h-dvh items-center justify-center bg-[#F8FAFC] px-4 text-[#1E293B]"
+        aria-busy="true"
+      >
+        <div role="status" aria-live="polite" className="flex flex-col items-center gap-3">
+          <span
+            aria-hidden="true"
+            className="h-10 w-10 animate-spin rounded-full border-4 border-[#E2E8F0] border-t-[#E8B84B]"
+          />
+          <span className="text-sm font-semibold">Tarixiy yuklanmoqda...</span>
+        </div>
+      </main>
+    );
   }
   if (entryState === 'onboarding') {
     return <Onboarding onComplete={finishOnboarding} onLogin={startLogin} />;
